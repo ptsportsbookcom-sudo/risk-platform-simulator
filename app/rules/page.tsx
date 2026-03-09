@@ -69,6 +69,22 @@ export default function RulesPage() {
   const [enabled, setEnabled] = useState(true);
   const [domain, setDomain] =
     useState<(typeof DOMAIN_OPTIONS)[number]>("operations");
+  const [group, setGroup] = useState<
+    | "sportsbook_exposure"
+    | "stake_monitoring"
+    | "deposit_velocity"
+    | "bonus_abuse"
+    | "withdrawal_anomaly"
+    | "multi_account"
+    | "vpn_detection"
+    | "geo_mismatch"
+    | "deposit_structuring"
+    | "transaction_volume"
+    | "cdd_threshold"
+    | "affordability_threshold"
+    | "player_control"
+    | "manual_review"
+  >("manual_review");
 
   const [conditions, setConditions] = useState<
     { field: (typeof CONDITION_FIELDS)[number]; operator: (typeof OPERATORS)[number]; value: string }[]
@@ -103,6 +119,7 @@ export default function RulesPage() {
     setEventType("any");
     setEnabled(true);
     setDomain("operations");
+    setGroup("manual_review");
     setConditions([]);
     setCreateAlert(false);
     setAlertSeverity("Medium");
@@ -159,6 +176,7 @@ export default function RulesPage() {
           description: description.trim() || undefined,
           enabled,
           domain,
+          group,
           eventType: eventType === "any" ? "any" : eventType,
           conditions: conditions.map((c) => ({
             field: c.field,
@@ -181,6 +199,7 @@ export default function RulesPage() {
         enabled,
         type: "custom",
         domain,
+        group,
         eventType: eventType === "any" ? "any" : eventType,
         conditions: conditions.map((c) => ({
           field: c.field,
@@ -208,6 +227,7 @@ export default function RulesPage() {
     setDomain(
       (rule.domain as (typeof DOMAIN_OPTIONS)[number]) ?? "operations",
     );
+    setGroup((rule.group as any) ?? "manual_review");
 
     setConditions(
       (rule.conditions ?? []).map((c) => ({

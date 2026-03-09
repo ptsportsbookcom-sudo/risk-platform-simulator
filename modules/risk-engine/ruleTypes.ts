@@ -8,6 +8,22 @@ export type RiskDomain =
   | "aml_compliance"
   | "operations";
 
+export type RuleGroup =
+  | "sportsbook_exposure"
+  | "stake_monitoring"
+  | "deposit_velocity"
+  | "bonus_abuse"
+  | "withdrawal_anomaly"
+  | "multi_account"
+  | "vpn_detection"
+  | "geo_mismatch"
+  | "deposit_structuring"
+  | "transaction_volume"
+  | "cdd_threshold"
+  | "affordability_threshold"
+  | "player_control"
+  | "manual_review";
+
 export type ConditionOperator =
   | "equals"
   | "greater_than"
@@ -32,6 +48,7 @@ export interface Rule {
   enabled: boolean;
   type: RuleType;
   domain: RiskDomain;
+  group: RuleGroup;
   eventType?: EngineEventType | "any";
   conditions: RuleCondition[];
   actions: RuleAction[];
