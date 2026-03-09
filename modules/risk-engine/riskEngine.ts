@@ -9,6 +9,7 @@ import {
   evaluateRules,
 } from "./ruleEngine";
 import { updatePlayerSegments } from "../segmentation/segmentationEngine";
+import type { Rule } from "./ruleTypes";
 import { mockPlayers } from "@/data/mockPlayers";
 
 export interface EngineAlert {
@@ -70,6 +71,7 @@ export interface RiskEngineState {
   cases: EngineCase[];
   bets: EngineBet[];
   events: EngineEventLogEntry[];
+  rules: Rule[];
 }
 
 export interface ProcessEventResult {
@@ -123,12 +125,15 @@ export function createInitialState(): RiskEngineState {
     };
   }
 
+  const rules: Rule[] = [];
+
   return {
     players,
     alerts: [],
     cases: [],
     bets: [],
     events: [],
+    rules,
   };
 }
 
@@ -309,6 +314,7 @@ export function processEvent(
     cases: [...state.cases, ...newCases],
     bets: [...state.bets, ...newBets],
     events: nextEvents.slice(0, 100),
+    rules: state.rules,
   };
 
   return {

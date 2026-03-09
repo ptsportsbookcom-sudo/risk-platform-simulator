@@ -17,6 +17,7 @@ import {
   buildEngineEventFromSimulator,
   getDashboardStats,
 } from "@/modules/risk-engine";
+import type { Rule } from "@/modules/risk-engine/ruleTypes";
 
 type RiskEngineAction =
   | { type: "COMMIT"; payload: { state: RiskEngineState; sequence: number } }
@@ -24,6 +25,8 @@ type RiskEngineAction =
       type: "UPDATE_PLAYER";
       payload: { playerId: string; patch: Partial<PlayerRiskState> };
     }
+  | { type: "ADD_RULE"; payload: Rule }
+  | { type: "TOGGLE_RULE"; payload: { id: string } }
   | { type: "RESET" };
 
 interface RiskEngineContextValue {
@@ -34,6 +37,8 @@ interface RiskEngineContextValue {
     playerId: string,
     patch: Partial<PlayerRiskState>,
   ) => void;
+  addRule: (rule: Rule) => void;
+  toggleRule: (id: string) => void;
   reset: () => void;
 }
 
@@ -64,6 +69,24 @@ function reducer(
         sequence: current.sequence,
       };
     }
+    case "ADD_RULE":
+      return {
+        state: {
+          ...current.state,
+          rules: [...(current.state.rules ?? []), action.payload],
+        },
+        sequence: current.sequence,
+      };
+    case "TOGGLE_RULE":
+      return {
+        state: {
+          ...current.state,
+          rules: (current.state.rules ?? []).map((r) =>
+            r.id === action.payload.id ? { ...r, enabled: !r.enabled } : r,
+          ),
+        },
+        sequence: current.sequence,
+      };
     case "RESET":
       return { state: createInitialState(), sequence: 0 };
     default:
@@ -97,6 +120,9 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
       },
       updatePlayerStatus: (playerId: string, patch: Partial<PlayerRiskState>) =>
         dispatch({ type: "UPDATE_PLAYER", payload: { playerId, patch } }),
+      addRule: (rule: Rule) => dispatch({ type: "ADD_RULE", payload: rule }),
+      toggleRule: (id: string) =>
+        dispatch({ type: "TOGGLE_RULE", payload: { id } }),
       reset: () => dispatch({ type: "RESET" }),
     }),
     [internal],
