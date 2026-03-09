@@ -8,6 +8,10 @@ import {
   DOMAIN_RULE_GROUPS,
   type DomainKey,
 } from "@/modules/risk-domains/domainRuleGroups";
+import {
+  RULE_TAXONOMY,
+  type TaxonomyDomain,
+} from "@/modules/risk-domains/ruleTaxonomy";
 import { useMemo, useState } from "react";
 
 function summarizeActions(actions: Rule["actions"]) {
@@ -132,10 +136,18 @@ export default function RulesPage() {
   }, [rules, domainFilter, groupFilter]);
 
   const availableGroupsForDomain = useMemo(
-    () =>
-      DOMAIN_RULE_GROUPS[domain as DomainKey]
-        ? DOMAIN_RULE_GROUPS[domain as DomainKey]
-        : [],
+    () => {
+      // Prefer RULE_TAXONOMY for structured domain→group mapping,
+      // fall back to DOMAIN_RULE_GROUPS if needed.
+      const taxDomain = domain as TaxonomyDomain;
+      if (RULE_TAXONOMY[taxDomain]) {
+        return Object.keys(RULE_TAXONOMY[taxDomain]);
+      }
+      const legacyDomain = domain as DomainKey;
+      return DOMAIN_RULE_GROUPS[legacyDomain]
+        ? DOMAIN_RULE_GROUPS[legacyDomain]
+        : [];
+    },
     [domain],
   );
 
@@ -518,55 +530,58 @@ export default function RulesPage() {
                   className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 />
               </div>
-              <div className="flex gap-3">
-                <div className="flex-1 space-y-1">
-                  <label className="block text-slate-300">Event Type</label>
-                  <select
-                    value={eventType}
-                    onChange={(e) =>
-                      setEventType(e.target.value as (typeof EVENT_TYPES)[number])
-                    }
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                  >
-                    {EVENT_TYPES.map((et) => (
-                      <option key={et} value={et}>
-                        {et}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1 space-y-1">
-                  <label className="block text-slate-300">Risk Domain</label>
-                  <select
-                    value={domain}
-                    onChange={(e) => {
-                      setDomain(e.target.value as (typeof DOMAIN_OPTIONS)[number]);
-                      setGroup(""); // reset group when domain changes
-                    }}
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                  >
-                    {DOMAIN_OPTIONS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1 space-y-1">
-                  <label className="block text-slate-300">Rule Group</label>
-                  <select
-                    value={group}
-                    onChange={(e) => setGroup(e.target.value)}
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                  >
-                    <option value="">Select group</option>
-                    {availableGroupsForDomain.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* Taxonomy order: Domain → Group → Event Type */}
+              <div className="space-y-1">
+                <label className="block text-slate-300">Risk Domain</label>
+                <select
+                  value={domain}
+                  onChange={(e) => {
+                    setDomain(e.target.value as (typeof DOMAIN_OPTIONS)[number]);
+                    setGroup("");
+                    setEventType("any");
+                  }}
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                >
+                  {DOMAIN_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-slate-300">Rule Group</label>
+                <select
+                  value={group}
+                  onChange={(e) => {
+                    setGroup(e.target.value);
+                    setEventType("any");
+                  }}
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                >
+                  <option value="">Select group</option>
+                  {availableGroupsForDomain.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-slate-300">Event Type</label>
+                <select
+                  value={eventType}
+                  onChange={(e) =>
+                    setEventType(e.target.value as (typeof EVENT_TYPES)[number])
+                  }
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                >
+                  {EVENT_TYPES.map((et) => (
+                    <option key={et} value={et}>
+                      {et}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-3">
