@@ -82,6 +82,19 @@ export default function RulesPage() {
   const [assignSegment, setAssignSegment] = useState(false);
 
   const rules = useMemo(() => state.rules ?? [], [state.rules]);
+  const [domainFilter, setDomainFilter] = useState<
+    "all" | (typeof DOMAIN_OPTIONS)[number]
+  >("all");
+
+  const filteredRules = useMemo(
+    () =>
+      domainFilter === "all"
+        ? rules
+        : rules.filter(
+            (r) => (r.domain ?? "operations") === domainFilter,
+          ),
+    [rules, domainFilter],
+  );
 
   function resetForm() {
     setEditingRuleId(null);
@@ -248,11 +261,38 @@ export default function RulesPage() {
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-slate-800/80 bg-slate-950/40">
+      {/* Domain filter tabs */}
+      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+        {[
+          { id: "all", label: "All" },
+          { id: "sportsbook_trading", label: "Sportsbook" },
+          { id: "fraud_abuse", label: "Fraud" },
+          { id: "aml_compliance", label: "AML" },
+          { id: "operations", label: "Operations" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() =>
+              setDomainFilter(tab.id as "all" | (typeof DOMAIN_OPTIONS)[number])
+            }
+            className={`rounded-full px-3 py-1 ${
+              domainFilter === tab.id
+                ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/60"
+                : "border border-slate-700 text-slate-300 hover:bg-slate-800"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-lg border border-slate-800/80 bg-slate-950/40">
         <table className="min-w-full divide-y divide-slate-800 text-left text-xs text-slate-200">
           <thead className="bg-slate-950/70 text-[11px] uppercase tracking-wide text-slate-400">
             <tr>
               <th className="px-3 py-2.5 font-semibold">Rule Name</th>
+              <th className="px-3 py-2.5 font-semibold">Domain</th>
               <th className="px-3 py-2.5 font-semibold">Type</th>
               <th className="px-3 py-2.5 font-semibold">Event</th>
               <th className="px-3 py-2.5 font-semibold">Enabled</th>
@@ -261,7 +301,7 @@ export default function RulesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-900/80">
-            {rules.map((r) => (
+            {filteredRules.map((r) => (
               <tr key={r.id} className="hover:bg-slate-900/60">
                 <td className="px-3 py-2 align-middle">
                   <div className="flex flex-col gap-0.5">
@@ -275,6 +315,14 @@ export default function RulesPage() {
                       {r.id}
                     </span>
                   </div>
+                </td>
+                <td className="px-3 py-2 align-middle">
+                  <Badge variant="outline">
+                    {(r.domain ?? "operations")
+                      .replace("_", " ")
+                      .replace("fraud", "Fraud")
+                      .replace("aml", "AML")}
+                  </Badge>
                 </td>
                 <td className="px-3 py-2 align-middle">
                   <Badge variant={r.type === "system" ? "outline" : "success"}>
@@ -321,7 +369,7 @@ export default function RulesPage() {
                 </td>
               </tr>
             ))}
-            {rules.length === 0 && (
+            {filteredRules.length === 0 && (
               <tr>
                 <td
                   colSpan={6}
