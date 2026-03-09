@@ -101,16 +101,38 @@ export default function RulesPage() {
   const [domainFilter, setDomainFilter] = useState<
     "all" | (typeof DOMAIN_OPTIONS)[number]
   >("all");
+  const [groupFilter, setGroupFilter] = useState<
+    | "all"
+    | "sportsbook_exposure"
+    | "bonus_abuse"
+    | "deposit_velocity"
+    | "withdrawal_anomaly"
+    | "multi_account"
+    | "vpn_detection"
+    | "geo_mismatch"
+    | "deposit_structuring"
+    | "transaction_volume"
+    | "cdd_threshold"
+    | "affordability_threshold"
+  >("all");
 
-  const filteredRules = useMemo(
-    () =>
-      domainFilter === "all"
-        ? rules
-        : rules.filter(
-            (r) => (r.domain ?? "operations") === domainFilter,
-          ),
-    [rules, domainFilter],
-  );
+  const filteredRules = useMemo(() => {
+    let base = rules;
+
+    if (domainFilter !== "all") {
+      base = base.filter(
+        (r) => (r.domain ?? "operations") === domainFilter,
+      );
+    }
+
+    if (groupFilter !== "all") {
+      base = base.filter(
+        (r) => (r.group ?? "manual_review") === groupFilter,
+      );
+    }
+
+    return base;
+  }, [rules, domainFilter, groupFilter]);
 
   function resetForm() {
     setEditingRuleId(null);
@@ -281,30 +303,72 @@ export default function RulesPage() {
         </div>
       </div>
 
-      {/* Domain filter tabs */}
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        {[
-          { id: "all", label: "All" },
-          { id: "sportsbook_trading", label: "Sportsbook" },
-          { id: "fraud_abuse", label: "Fraud" },
-          { id: "aml_compliance", label: "AML" },
-          { id: "operations", label: "Operations" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() =>
-              setDomainFilter(tab.id as "all" | (typeof DOMAIN_OPTIONS)[number])
+      {/* Domain filter tabs & Group filter dropdown */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "all", label: "All" },
+            { id: "sportsbook_trading", label: "Sportsbook" },
+            { id: "fraud_abuse", label: "Fraud" },
+            { id: "aml_compliance", label: "AML" },
+            { id: "operations", label: "Operations" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() =>
+                setDomainFilter(tab.id as "all" | (typeof DOMAIN_OPTIONS)[number])
+              }
+              className={`rounded-full px-3 py-1 ${
+                domainFilter === tab.id
+                  ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/60"
+                  : "border border-slate-700 text-slate-300 hover:bg-slate-800"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400">Group</span>
+          <select
+            value={groupFilter}
+            onChange={(e) =>
+              setGroupFilter(
+                e.target.value as
+                  | "all"
+                  | "sportsbook_exposure"
+                  | "bonus_abuse"
+                  | "deposit_velocity"
+                  | "withdrawal_anomaly"
+                  | "multi_account"
+                  | "vpn_detection"
+                  | "geo_mismatch"
+                  | "deposit_structuring"
+                  | "transaction_volume"
+                  | "cdd_threshold"
+                  | "affordability_threshold",
+              )
             }
-            className={`rounded-full px-3 py-1 ${
-              domainFilter === tab.id
-                ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/60"
-                : "border border-slate-700 text-slate-300 hover:bg-slate-800"
-            }`}
+            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
           >
-            {tab.label}
-          </button>
-        ))}
+            <option value="all">All Groups</option>
+            <option value="sportsbook_exposure">sportsbook_exposure</option>
+            <option value="bonus_abuse">bonus_abuse</option>
+            <option value="deposit_velocity">deposit_velocity</option>
+            <option value="withdrawal_anomaly">withdrawal_anomaly</option>
+            <option value="multi_account">multi_account</option>
+            <option value="vpn_detection">vpn_detection</option>
+            <option value="geo_mismatch">geo_mismatch</option>
+            <option value="deposit_structuring">deposit_structuring</option>
+            <option value="transaction_volume">transaction_volume</option>
+            <option value="cdd_threshold">cdd_threshold</option>
+            <option value="affordability_threshold">
+              affordability_threshold
+            </option>
+          </select>
+        </div>
       </div>
 
       <div className="mt-3 overflow-hidden rounded-lg border border-slate-800/80 bg-slate-950/40">
@@ -313,6 +377,7 @@ export default function RulesPage() {
             <tr>
               <th className="px-3 py-2.5 font-semibold">Rule Name</th>
               <th className="px-3 py-2.5 font-semibold">Domain</th>
+              <th className="px-3 py-2.5 font-semibold">Group</th>
               <th className="px-3 py-2.5 font-semibold">Type</th>
               <th className="px-3 py-2.5 font-semibold">Event</th>
               <th className="px-3 py-2.5 font-semibold">Enabled</th>
@@ -343,6 +408,11 @@ export default function RulesPage() {
                       .replace("fraud", "Fraud")
                       .replace("aml", "AML")}
                   </Badge>
+                </td>
+                <td className="px-3 py-2 align-middle">
+                  <span className="text-[11px] text-slate-300">
+                    {r.group ?? "manual_review"}
+                  </span>
                 </td>
                 <td className="px-3 py-2 align-middle">
                   <Badge variant={r.type === "system" ? "outline" : "success"}>
@@ -392,7 +462,7 @@ export default function RulesPage() {
             {filteredRules.length === 0 && (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-3 py-3 text-center text-xs text-slate-400"
                 >
                   No rules configured yet.
