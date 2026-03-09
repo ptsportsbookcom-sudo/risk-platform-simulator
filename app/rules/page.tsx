@@ -4,6 +4,10 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 import type { Rule } from "@/modules/risk-engine/ruleTypes";
+import {
+  DOMAIN_RULE_GROUPS,
+  type DomainKey,
+} from "@/modules/risk-domains/domainRuleGroups";
 import { useMemo, useState } from "react";
 
 function summarizeActions(actions: Rule["actions"]) {
@@ -36,10 +40,11 @@ const EVENT_TYPES = [
   "cdd_threshold_breach",
 ] as const;
 
+const TAXONOMY_DOMAINS = Object.keys(
+  DOMAIN_RULE_GROUPS,
+) as DomainKey[];
 const DOMAIN_OPTIONS = [
-  "sportsbook_trading",
-  "fraud_abuse",
-  "aml_compliance",
+  ...TAXONOMY_DOMAINS,
   "operations",
 ] as const;
 
@@ -76,22 +81,7 @@ export default function RulesPage() {
   const [enabled, setEnabled] = useState(true);
   const [domain, setDomain] =
     useState<(typeof DOMAIN_OPTIONS)[number]>("operations");
-  const [group, setGroup] = useState<
-    | "sportsbook_exposure"
-    | "stake_monitoring"
-    | "deposit_velocity"
-    | "bonus_abuse"
-    | "withdrawal_anomaly"
-    | "multi_account"
-    | "vpn_detection"
-    | "geo_mismatch"
-    | "deposit_structuring"
-    | "transaction_volume"
-    | "cdd_threshold"
-    | "affordability_threshold"
-    | "player_control"
-    | "manual_review"
-  >("manual_review");
+  const [group, setGroup] = useState<string>("");
 
   const [conditions, setConditions] = useState<
     { field: (typeof CONDITION_FIELDS)[number]; operator: (typeof OPERATORS)[number]; value: string }[]
@@ -141,6 +131,14 @@ export default function RulesPage() {
     return base;
   }, [rules, domainFilter, groupFilter]);
 
+  const availableGroupsForDomain = useMemo(
+    () =>
+      DOMAIN_RULE_GROUPS[domain as DomainKey]
+        ? DOMAIN_RULE_GROUPS[domain as DomainKey]
+        : [],
+    [domain],
+  );
+
   function resetForm() {
     setEditingRuleId(null);
     setName("");
@@ -148,7 +146,7 @@ export default function RulesPage() {
     setEventType("any");
     setEnabled(true);
     setDomain("operations");
-    setGroup("manual_review");
+    setGroup("");
     setConditions([]);
     setCreateAlert(false);
     setSeverity("medium");
@@ -205,7 +203,7 @@ export default function RulesPage() {
           description: description.trim() || undefined,
           enabled,
           domain,
-          group,
+          group: (group || "manual_review") as Rule["group"],
           severity,
           eventType: eventType === "any" ? "any" : eventType,
           conditions: conditions.map((c) => ({
@@ -229,7 +227,7 @@ export default function RulesPage() {
         enabled,
         type: "custom",
         domain,
-        group,
+        group: (group || "manual_review") as Rule["group"],
         severity,
         eventType: eventType === "any" ? "any" : eventType,
         conditions: conditions.map((c) => ({
@@ -258,7 +256,7 @@ export default function RulesPage() {
     setDomain(
       (rule.domain as (typeof DOMAIN_OPTIONS)[number]) ?? "operations",
     );
-    setGroup((rule.group as any) ?? "manual_review");
+    setGroup(rule.group ?? "");
 
     // UI only supports flat conditions; if conditions are a nested group, we ignore them here.
     const flatConditions = Array.isArray(rule.conditions)
@@ -541,11 +539,10 @@ export default function RulesPage() {
                   <label className="block text-slate-300">Risk Domain</label>
                   <select
                     value={domain}
-                    onChange={(e) =>
-                      setDomain(
-                        e.target.value as (typeof DOMAIN_OPTIONS)[number],
-                      )
-                    }
+                    onChange={(e) => {
+                      setDomain(e.target.value as (typeof DOMAIN_OPTIONS)[number]);
+                      setGroup(""); // reset group when domain changes
+                    }}
                     className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   >
                     {DOMAIN_OPTIONS.map((d) => (
@@ -559,27 +556,15 @@ export default function RulesPage() {
                   <label className="block text-slate-300">Rule Group</label>
                   <select
                     value={group}
-                    onChange={(e) =>
-                      setGroup(e.target.value as typeof group)
-                    }
+                    onChange={(e) => setGroup(e.target.value)}
                     className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   >
-                    <option value="sportsbook_exposure">sportsbook_exposure</option>
-                    <option value="stake_monitoring">stake_monitoring</option>
-                    <option value="deposit_velocity">deposit_velocity</option>
-                    <option value="bonus_abuse">bonus_abuse</option>
-                    <option value="withdrawal_anomaly">withdrawal_anomaly</option>
-                    <option value="multi_account">multi_account</option>
-                    <option value="vpn_detection">vpn_detection</option>
-                    <option value="geo_mismatch">geo_mismatch</option>
-                    <option value="deposit_structuring">deposit_structuring</option>
-                    <option value="transaction_volume">transaction_volume</option>
-                    <option value="cdd_threshold">cdd_threshold</option>
-                    <option value="affordability_threshold">
-                      affordability_threshold
-                    </option>
-                    <option value="player_control">player_control</option>
-                    <option value="manual_review">manual_review</option>
+                    <option value="">Select group</option>
+                    {availableGroupsForDomain.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

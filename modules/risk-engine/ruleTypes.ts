@@ -4,11 +4,15 @@ export type RuleType = "system" | "custom";
 
 export type RiskDomain =
   | "sportsbook_trading"
+  | "sportsbook_risk"
+  | "casino_risk"
   | "fraud_abuse"
   | "aml_compliance"
+  | "responsible_gambling"
   | "operations";
 
 export type RuleGroup =
+  // existing groups
   | "sportsbook_exposure"
   | "stake_monitoring"
   | "deposit_velocity"
@@ -22,7 +26,25 @@ export type RuleGroup =
   | "cdd_threshold"
   | "affordability_threshold"
   | "player_control"
-  | "manual_review";
+  | "manual_review"
+  // taxonomy groups
+  | "large_bet"
+  | "payout_exposure"
+  | "odds_manipulation"
+  | "arbitrage"
+  | "market_exposure"
+  | "bonus_farming"
+  | "chip_dumping"
+  | "session_velocity"
+  | "game_exploitation"
+  | "low_wagering"
+  | "device_fraud"
+  | "payment_cycling"
+  | "transaction_monitoring"
+  | "withdrawal_velocity"
+  | "loss_chasing"
+  | "session_duration"
+  | "deposit_frequency";
 
 export type ConditionOperator =
   | "equals"
