@@ -11,14 +11,10 @@ function summarizeActions(actions: Rule["actions"]) {
   for (const a of actions) {
     if (a.type === "createAlert") {
       parts.push(`Alert (${a.severity})`);
-    } else if (a.type === "openCase") {
-      parts.push("Open Case");
+    } else if (a.type === "createCase") {
+      parts.push("Case");
     } else if (a.type === "assignSegment") {
       parts.push(`Segment: ${a.value}`);
-    } else if (a.type === "blockAction") {
-      parts.push("Block Action");
-    } else if (a.type === "requestApproval") {
-      parts.push("Request Approval");
     }
   }
   return parts.join(", ");
@@ -61,11 +57,9 @@ export default function RulesPage() {
   const [createAlert, setCreateAlert] = useState(false);
   const [alertSeverity, setAlertSeverity] =
     useState<"Low" | "Medium" | "High" | "Critical">("Medium");
-  const [openCase, setOpenCase] = useState(false);
+  const [createCase, setCreateCase] = useState(false);
   const [segmentValue, setSegmentValue] = useState("");
   const [assignSegment, setAssignSegment] = useState(false);
-  const [blockAction, setBlockAction] = useState(false);
-  const [requestApproval, setRequestApproval] = useState(false);
 
   const rules = useMemo(() => state.rules ?? [], [state.rules]);
 
@@ -78,11 +72,9 @@ export default function RulesPage() {
     setConditions([]);
     setCreateAlert(false);
     setAlertSeverity("Medium");
-    setOpenCase(false);
+    setCreateCase(false);
     setSegmentValue("");
     setAssignSegment(false);
-    setBlockAction(false);
-    setRequestApproval(false);
   }
 
   function handleAddCondition() {
@@ -117,17 +109,11 @@ export default function RulesPage() {
     if (createAlert) {
       actions.push({ type: "createAlert", severity: alertSeverity });
     }
-    if (openCase) {
-      actions.push({ type: "openCase" });
+    if (createCase) {
+      actions.push({ type: "createCase" });
     }
     if (assignSegment && segmentValue.trim()) {
       actions.push({ type: "assignSegment", value: segmentValue.trim() });
-    }
-    if (blockAction) {
-      actions.push({ type: "blockAction" });
-    }
-    if (requestApproval) {
-      actions.push({ type: "requestApproval" });
     }
 
     if (editingRuleId) {
@@ -200,17 +186,10 @@ export default function RulesPage() {
         : "Medium") as "Low" | "Medium" | "High" | "Critical",
     );
 
-    const hasCase = rule.actions.some((a) => a.type === "openCase");
-    setOpenCase(hasCase);
+    const hasCase = rule.actions.some((a) => a.type === "createCase");
+    setCreateCase(hasCase);
 
     const seg = rule.actions.find((a) => a.type === "assignSegment");
-    const hasBlock = rule.actions.some((a) => a.type === "blockAction");
-    setBlockAction(hasBlock);
-
-    const hasApproval = rule.actions.some(
-      (a) => a.type === "requestApproval",
-    );
-    setRequestApproval(hasApproval);
     setAssignSegment(!!seg);
     setSegmentValue(
       seg && "value" in seg ? String((seg as any).value ?? "") : "",
@@ -500,11 +479,11 @@ export default function RulesPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-slate-300">Open case</label>
+                    <label className="block text-slate-300">Create case</label>
                     <input
                       type="checkbox"
-                      checked={openCase}
-                      onChange={(e) => setOpenCase(e.target.checked)}
+                      checked={createCase}
+                      onChange={(e) => setCreateCase(e.target.checked)}
                     />
                   </div>
                   <div className="space-y-1">
@@ -524,24 +503,6 @@ export default function RulesPage() {
                         placeholder="Segment name"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-slate-300">Block action</label>
-                    <input
-                      type="checkbox"
-                      checked={blockAction}
-                      onChange={(e) => setBlockAction(e.target.checked)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-slate-300">
-                      Request approval
-                    </label>
-                    <input
-                      type="checkbox"
-                      checked={requestApproval}
-                      onChange={(e) => setRequestApproval(e.target.checked)}
-                    />
                   </div>
                 </div>
               </div>

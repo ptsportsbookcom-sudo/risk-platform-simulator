@@ -1,4 +1,3 @@
-import type { RiskLevel } from "./riskScore";
 import {
   type EngineEvent,
   type EngineEventType,
@@ -235,7 +234,7 @@ export function processEvent(
       }
     }
 
-    if (rule.openCase) {
+    if (rule.createCase) {
       const caseRecord: EngineCase = {
         id: nextId("CASE"),
         playerId: event.playerId,

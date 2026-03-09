@@ -1,4 +1,3 @@
-import type { RiskLevel } from "./riskScore";
 import type { Rule, RuleCondition } from "./ruleTypes";
 
 export type EngineEventType =
@@ -47,9 +46,7 @@ export interface RuleEvaluation {
   description: string;
   createAlert: boolean;
   alertSeverity?: AlertSeverity;
-  openCase?: boolean;
-  blockAction?: boolean;
-  requestApproval?: boolean;
+  createCase?: boolean;
   assignSegments?: string[];
 }
 
@@ -158,7 +155,7 @@ export function evaluateRules(
       description: "Chargeback reported on player account.",
       createAlert: true,
       alertSeverity: "Critical",
-      openCase: true,
+      createCase: true,
     });
   }
 
@@ -221,35 +218,27 @@ export function evaluateRules(
 
     let createAlert = false;
     let alertSeverity: AlertSeverity | undefined;
-    let openCase = false;
-    let blockAction = false;
-    let requestApproval = false;
+    let createCase = false;
     const assignSegments: string[] = [];
 
     for (const action of rule.actions ?? []) {
       if (action.type === "createAlert") {
         createAlert = true;
         alertSeverity = action.severity;
-      } else if (action.type === "openCase") {
-        openCase = true;
-      } else if (action.type === "blockAction") {
-        blockAction = true;
-      } else if (action.type === "requestApproval") {
-        requestApproval = true;
+      } else if (action.type === "createCase") {
+        createCase = true;
       } else if (action.type === "assignSegment") {
         assignSegments.push(action.value);
       }
     }
 
-    if (createAlert || openCase || blockAction || requestApproval || assignSegments.length > 0) {
+    if (createAlert || createCase || assignSegments.length > 0) {
       results.push({
         ruleId: rule.id,
         description: rule.description ?? rule.name,
         createAlert,
         alertSeverity,
-        openCase,
-        blockAction,
-        requestApproval,
+        createCase,
         assignSegments: assignSegments.length ? assignSegments : undefined,
       });
     }

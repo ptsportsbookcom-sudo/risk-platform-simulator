@@ -16,10 +16,8 @@ export interface RuleCondition {
 
 export type RuleAction =
   | { type: "createAlert"; severity: AlertSeverity }
-  | { type: "openCase" }
-  | { type: "assignSegment"; value: string }
-  | { type: "blockAction" }
-  | { type: "requestApproval" };
+  | { type: "createCase" }
+  | { type: "assignSegment"; value: string };
 
 export interface Rule {
   id: string;
