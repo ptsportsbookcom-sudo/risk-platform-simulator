@@ -202,7 +202,7 @@ export function processEvent(
     segments: playerWithActivity.segments ?? [],
   };
 
-  const ruleResults = evaluateRules(event, snapshotForRules);
+  const ruleResults = evaluateRules(event, snapshotForRules, state.rules ?? []);
 
   const totalDelta = ruleResults.reduce((sum, r) => sum + r.delta, 0);
   const previousScore = baselinePlayer.riskScore;

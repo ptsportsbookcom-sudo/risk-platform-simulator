@@ -1,4 +1,5 @@
 import type { RiskLevel } from "./riskScore";
+import type { Rule, RuleCondition } from "./ruleTypes";
 
 export type EngineEventType =
   | "player_created"
@@ -54,9 +55,62 @@ export interface RuleEvaluation {
 
 const DEPOSIT_VELOCITY_WINDOW_MINUTES = 10;
 
+function conditionMatches(
+  condition: RuleCondition,
+  event: EngineEvent,
+  player: PlayerRiskSnapshot,
+): boolean {
+  const { field, operator, value } = condition;
+
+  let left: unknown;
+
+  if (field === "amount") {
+    left = event.amount ?? 0;
+  } else if (field === "riskScore") {
+    left = player.riskScore;
+  } else if (field === "segments") {
+    left = player.segments ?? [];
+  } else if (field === "eventType") {
+    left = event.eventType;
+  } else {
+    // Fallback: try metadata
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      field as keyof typeof event.metadata
+    ];
+  }
+
+  if (operator === "equals") {
+    return left === value;
+  }
+
+  if (operator === "greater_than") {
+    const lv = Number(left ?? 0);
+    const rv = Number(value);
+    return lv > rv;
+  }
+
+  if (operator === "less_than") {
+    const lv = Number(left ?? 0);
+    const rv = Number(value);
+    return lv < rv;
+  }
+
+  if (operator === "contains") {
+    if (Array.isArray(left)) {
+      return left.includes(value as never);
+    }
+    if (typeof left === "string" && typeof value === "string") {
+      return left.includes(value);
+    }
+  }
+
+  return false;
+}
+
 export function evaluateRules(
   event: EngineEvent,
   player: PlayerRiskSnapshot,
+  customRules: Rule[],
 ): RuleEvaluation[] {
   const results: RuleEvaluation[] = [];
 
@@ -157,6 +211,49 @@ export function evaluateRules(
           alertSeverity: "High",
         });
       }
+    }
+  }
+
+  // Custom rules (system + analyst-created) evaluated generically
+  const activeCustom = (customRules ?? []).filter(
+    (r) =>
+      r.enabled &&
+      (r.eventType === "any" || r.eventType === event.eventType || r.eventType == null),
+  );
+
+  for (const rule of activeCustom) {
+    const matches =
+      (rule.conditions ?? []).length === 0 ||
+      rule.conditions.every((c) => conditionMatches(c, event, player));
+
+    if (!matches) continue;
+
+    let delta = 0;
+    let createAlert = false;
+    let alertSeverity: AlertSeverity | undefined;
+    let createCase = false;
+
+    for (const action of rule.actions ?? []) {
+      if (action.type === "riskScoreIncrease") {
+        delta += action.value;
+      } else if (action.type === "createAlert") {
+        createAlert = true;
+        alertSeverity = action.severity;
+      } else if (action.type === "createCase") {
+        createCase = true;
+      }
+      // assignSegment is handled elsewhere via segmentation / player updates
+    }
+
+    if (delta !== 0 || createAlert || createCase) {
+      results.push({
+        ruleId: rule.id,
+        description: rule.description ?? rule.name,
+        delta,
+        createAlert,
+        alertSeverity,
+        createCase,
+      });
     }
   }
 
