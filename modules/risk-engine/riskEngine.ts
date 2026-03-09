@@ -27,12 +27,41 @@ export interface EngineCase {
   status: "Open" | "Closed";
 }
 
-export interface PlayerRiskState extends PlayerRiskSnapshot {}
+export interface EngineBet {
+  id: string;
+  playerId: string;
+  eventId: string;
+  timestamp: string;
+  amount?: number;
+}
+
+export interface EngineEventLogEntry {
+  id: string;
+  playerId: string;
+  eventType: EngineEventType;
+  timestamp: string;
+  previousScore: number;
+  newScore: number;
+  riskDelta: number;
+  triggeredRules: string[];
+}
+
+export interface PlayerRiskState extends PlayerRiskSnapshot {
+  name: string;
+  country: string;
+  kycStatus: string;
+  cddTier: string;
+  lastActivity: string;
+  balance: number;
+  negativeBalance: boolean;
+}
 
 export interface RiskEngineState {
   players: Record<string, PlayerRiskState>;
   alerts: EngineAlert[];
   cases: EngineCase[];
+  bets: EngineBet[];
+  events: EngineEventLogEntry[];
 }
 
 export interface ProcessEventResult {
@@ -69,6 +98,13 @@ export function createInitialState(): RiskEngineState {
       riskLevel,
       kycLevel: toKycLevel(p.kycStatus),
       depositTimestamps: [],
+      name: p.name,
+      country: p.country,
+      kycStatus: p.kycStatus,
+      cddTier: p.cddTier,
+      lastActivity: p.lastActivity,
+      balance: p.balance,
+      negativeBalance: p.negativeBalance,
     };
   }
 
@@ -76,6 +112,8 @@ export function createInitialState(): RiskEngineState {
     players,
     alerts: [],
     cases: [],
+    bets: [],
+    events: [],
   };
 }
 
@@ -99,9 +137,16 @@ export function processEvent(
       riskLevel: getRiskLevel(0),
       kycLevel: "KYC_0",
       depositTimestamps: [],
+      name: `Simulated Player ${event.playerId}`,
+      country: "XX",
+      kycStatus: "Not Started",
+      cddTier: "Standard",
+      lastActivity: event.timestamp,
+      balance: 0,
+      negativeBalance: false,
     };
 
-  const player: PlayerRiskSnapshot =
+  const player: PlayerRiskState =
     event.eventType === "deposit"
       ? {
           ...baselinePlayer,
@@ -112,7 +157,23 @@ export function processEvent(
         }
       : baselinePlayer;
 
-  const ruleResults = evaluateRules(event, player);
+  // Update last activity and simple KYC reaction
+  const playerWithActivity: PlayerRiskState = {
+    ...player,
+    lastActivity: event.timestamp,
+    kycStatus:
+      event.eventType === "kyc_failure" ? "Failed" : player.kycStatus,
+  };
+
+  const snapshotForRules: PlayerRiskSnapshot = {
+    playerId: playerWithActivity.playerId,
+    riskScore: playerWithActivity.riskScore,
+    riskLevel: playerWithActivity.riskLevel,
+    kycLevel: playerWithActivity.kycLevel,
+    depositTimestamps: playerWithActivity.depositTimestamps,
+  };
+
+  const ruleResults = evaluateRules(event, snapshotForRules);
 
   const totalDelta = ruleResults.reduce((sum, r) => sum + r.delta, 0);
   const previousScore = baselinePlayer.riskScore;
@@ -120,13 +181,14 @@ export function processEvent(
   const newRiskLevel = getRiskLevel(newScore);
 
   const updatedPlayer: PlayerRiskState = {
-    ...player,
+    ...playerWithActivity,
     riskScore: newScore,
     riskLevel: newRiskLevel,
   };
 
   const newAlerts: EngineAlert[] = [];
   const newCases: EngineCase[] = [];
+  const newBets: EngineBet[] = [];
 
   for (const rule of ruleResults) {
     if (rule.createAlert && rule.alertSeverity) {
@@ -139,13 +201,25 @@ export function processEvent(
         status: "Open",
       };
       newAlerts.push(alert);
+
+      // If this is a sportsbook large bet rule, register a high-risk bet.
+      if (rule.ruleId === "R5_LARGE_BET") {
+        const bet: EngineBet = {
+          id: nextId("BET"),
+          playerId: event.playerId,
+          eventId: event.id,
+          timestamp: event.timestamp,
+          amount: event.amount,
+        };
+        newBets.push(bet);
+      }
     }
 
     if (rule.createCase) {
       const caseRecord: EngineCase = {
         id: nextId("CASE"),
         playerId: event.playerId,
-        alerts: [],
+        alerts: newAlerts.map((a) => a.id),
         openedAt: event.timestamp,
         status: "Open",
       };
@@ -164,12 +238,24 @@ export function processEvent(
     const autoCase: EngineCase = {
       id: nextId("CASE"),
       playerId: event.playerId,
-      alerts: [],
+      alerts: newAlerts.map((a) => a.id),
       openedAt: event.timestamp,
       status: "Open",
     };
     newCases.push(autoCase);
   }
+
+  const riskDelta = newScore - previousScore;
+  const logEntry: EngineEventLogEntry = {
+    id: event.id,
+    playerId: event.playerId,
+    eventType: event.eventType,
+    timestamp: event.timestamp,
+    previousScore,
+    newScore,
+    riskDelta,
+    triggeredRules: ruleResults.map((r) => r.ruleId),
+  };
 
   const nextState: RiskEngineState = {
     players: {
@@ -178,6 +264,8 @@ export function processEvent(
     },
     alerts: [...state.alerts, ...newAlerts],
     cases: [...state.cases, ...newCases],
+    bets: [...state.bets, ...newBets],
+    events: [logEntry, ...state.events].slice(0, 100),
   };
 
   return {
@@ -209,14 +297,16 @@ export function buildEngineEventFromSimulator(
 export function getDashboardStats(state: RiskEngineState) {
   const activeAlerts = state.alerts.filter((a) => a.status === "Open").length;
   const highRiskPlayers = Object.values(state.players).filter(
-    (p) => p.riskLevel === "High" || p.riskLevel === "Critical",
+    (p) => p.riskScore > 150,
   ).length;
   const pendingCases = state.cases.filter((c) => c.status === "Open").length;
+  const highRiskBets = state.bets.length;
 
   return {
     activeAlerts,
     highRiskPlayers,
     pendingCases,
+    highRiskBets,
   };
 }
 

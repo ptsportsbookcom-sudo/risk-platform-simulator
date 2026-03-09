@@ -3,36 +3,19 @@
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
-import { mockPlayers } from "@/data/mockPlayers";
-import { mockAlerts } from "@/data/mockAlerts";
-import { mockCases } from "@/data/mockCases";
-import { mockHighRiskBets } from "@/data/mockBets";
 
 function formatNumber(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
 export function DashboardClient() {
-  const { dashboard } = useRiskEngine();
+  const { state, dashboard } = useRiskEngine();
 
-  const baseActiveAlerts = mockAlerts.filter((a) => a.status !== "Closed").length;
-  const baseHighRiskPlayers = mockPlayers.filter(
-    (p) => p.riskBand === "High" || p.riskBand === "Severe",
-  ).length;
-  const basePendingCases = mockCases.filter(
-    (c) =>
-      c.status === "New" ||
-      c.status === "Assigned" ||
-      c.status === "Investigating",
-  ).length;
+  const players = Object.values(state.players);
 
-  const activeAlerts = baseActiveAlerts + dashboard.activeAlerts;
-  const highRiskPlayers = baseHighRiskPlayers + dashboard.highRiskPlayers;
-  const pendingCases = basePendingCases + dashboard.pendingCases;
-
-  const highRiskBets = mockHighRiskBets.length;
-  const pendingKyc = mockPlayers.filter((p) => p.kycStatus === "Pending").length;
-  const negativeBalances = mockPlayers.filter((p) => p.negativeBalance).length;
+  const pendingKyc = players.filter((p) => p.kycLevel !== "KYC_2").length;
+  const enhancedCdd = players.filter((p) => p.cddTier === "Enhanced").length;
+  const negativeBalances = players.filter((p) => p.negativeBalance).length;
 
   const totalExposureSports = 18500;
   const totalExposureCasino = 42000;
@@ -55,7 +38,7 @@ export function DashboardClient() {
         <Card title="Active Alerts" accent="red">
           <div className="flex items-end justify-between">
             <div className="text-3xl font-semibold text-red-300">
-              {formatNumber(activeAlerts)}
+              {formatNumber(dashboard.activeAlerts)}
             </div>
             <Badge variant="danger">Fraud &amp; AML</Badge>
           </div>
@@ -64,7 +47,7 @@ export function DashboardClient() {
         <Card title="High Risk Players" accent="amber">
           <div className="flex items-end justify-between">
             <div className="text-3xl font-semibold text-amber-300">
-              {formatNumber(highRiskPlayers)}
+              {formatNumber(dashboard.highRiskPlayers)}
             </div>
             <Badge variant="warning">Monitoring</Badge>
           </div>
@@ -73,7 +56,7 @@ export function DashboardClient() {
         <Card title="Pending Cases" accent="emerald">
           <div className="flex items-end justify-between">
             <div className="text-3xl font-semibold text-emerald-300">
-              {formatNumber(pendingCases)}
+              {formatNumber(dashboard.pendingCases)}
             </div>
             <Badge variant="success">Work queue</Badge>
           </div>
@@ -82,7 +65,7 @@ export function DashboardClient() {
         <Card title="High Risk Bets" accent="sky">
           <div className="flex items-end justify-between">
             <div className="text-3xl font-semibold text-sky-300">
-              {formatNumber(highRiskBets)}
+              {formatNumber(dashboard.highRiskBets)}
             </div>
             <Badge variant="outline">Sports &amp; Casino</Badge>
           </div>
@@ -109,10 +92,7 @@ export function DashboardClient() {
             </div>
             <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
               <span>Enhanced CDD</span>
-              <span>
-                {mockPlayers.filter((p) => p.cddTier === "Enhanced").length}{" "}
-                players
-              </span>
+              <span>{enhancedCdd} players</span>
             </div>
           </div>
         </Card>
@@ -166,20 +146,6 @@ export function DashboardClient() {
               <p className="mt-1 text-[11px] text-slate-400">
                 Escalate for collections / affordability review.
               </p>
-            </div>
-            <div className="flex flex-col items-end gap-1 text-[11px] text-slate-400">
-              <span>Avg. negative balance</span>
-              <span className="font-semibold text-rose-200">
-                €
-                {formatNumber(
-                  Math.round(
-                    mockPlayers
-                      .filter((p) => p.negativeBalance)
-                      .reduce((sum, p) => sum + Math.abs(p.balance), 0) ||
-                      0 / Math.max(1, negativeBalances),
-                  ),
-                )}
-              </span>
             </div>
           </div>
         </Card>

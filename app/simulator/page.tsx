@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
-import type { Event } from "@/types/event";
 import type { EngineEventType } from "@/modules/risk-engine";
 
 type ButtonConfig = {
@@ -42,47 +40,22 @@ const complianceEvents: ButtonConfig[] = [
   { label: "Affordability Breach", engineType: "cdd_threshold_breach" },
 ];
 
-type LoggedEvent = Event & {
-  riskDelta: number;
-  newScore: number;
-  triggeredRules: string[];
-};
+function formatEventType(type: EngineEventType) {
+  return type
+    .split("_")
+    .map((t) => t[0].toUpperCase() + t.slice(1))
+    .join(" ");
+}
 
 export default function SimulatorPage() {
-  const { processSimulatorEvent } = useRiskEngine();
-  const [events, setEvents] = useState<LoggedEvent[]>([]);
+  const { state, processSimulatorEvent } = useRiskEngine();
+  const events = state.events;
 
   function triggerEvent(button: ButtonConfig) {
-    const result = processSimulatorEvent({
+    processSimulatorEvent({
       playerId: DEFAULT_PLAYER_ID,
       eventType: button.engineType,
     });
-
-    const now = new Date(result.newScore ? Date.now() : Date.now());
-
-    const logEvent: LoggedEvent = {
-      id: `EV-${(events.length + 1).toString().padStart(4, "0")}`,
-      category:
-        button.engineType === "place_bet" ||
-        button.engineType === "large_bet"
-          ? "Sportsbook"
-          : button.engineType === "vpn_login" ||
-              button.engineType === "multi_device_login" ||
-              button.engineType === "chargeback"
-            ? "Fraud"
-            : button.engineType === "kyc_failure" ||
-                button.engineType === "cdd_threshold_breach"
-              ? "Compliance"
-              : "Player",
-      type: button.label,
-      createdAt: now.toISOString(),
-      meta: "Simulated event fired from control panel",
-      riskDelta: result.newScore - result.previousScore,
-      newScore: result.newScore,
-      triggeredRules: result.triggeredRules.map((r) => r.ruleId),
-    };
-
-    setEvents((prev) => [logEvent, ...prev].slice(0, 50));
   }
 
   function renderButtons(groupTitle: string, buttons: ButtonConfig[]) {
@@ -154,9 +127,11 @@ export default function SimulatorPage() {
                   <TD className="font-mono text-[11px] text-slate-300">
                     {e.id}
                   </TD>
-                  <TD className="text-xs text-slate-100">{e.type}</TD>
+                  <TD className="text-xs text-slate-100">
+                    {formatEventType(e.eventType)}
+                  </TD>
                   <TD className="font-mono text-[11px] text-slate-400">
-                    {new Date(e.createdAt).toLocaleTimeString()}
+                    {new Date(e.timestamp).toLocaleTimeString()}
                   </TD>
                   <TD className="text-xs text-slate-200">
                     {e.riskDelta >= 0 ? `+${e.riskDelta}` : e.riskDelta}

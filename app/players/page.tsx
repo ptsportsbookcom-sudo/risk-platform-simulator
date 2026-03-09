@@ -1,9 +1,14 @@
+"use client";
+
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
-import { mockPlayers } from "@/data/mockPlayers";
+import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 
 export default function PlayersPage() {
+  const { state } = useRiskEngine();
+  const players = Object.values(state.players);
+
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
@@ -14,7 +19,7 @@ export default function PlayersPage() {
           </p>
         </div>
         <Badge variant="outline">
-          {mockPlayers.length} players in current simulation
+          {players.length} players in current simulation
         </Badge>
       </div>
 
@@ -32,48 +37,55 @@ export default function PlayersPage() {
             </TR>
           </THead>
           <TBody>
-            {mockPlayers.map((p) => (
-              <TR key={p.id}>
-                <TD className="font-mono text-[11px] text-slate-300">{p.id}</TD>
-                <TD className="text-xs text-slate-100">{p.name}</TD>
-                <TD>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-100">
-                      {p.riskScore}
-                    </span>
+            {players.map((p) => {
+              const alertCount = state.alerts.filter(
+                (a) => a.playerId === p.playerId,
+              ).length;
+              return (
+                <TR key={p.playerId}>
+                  <TD className="font-mono text-[11px] text-slate-300">
+                    {p.playerId}
+                  </TD>
+                  <TD className="text-xs text-slate-100">{p.name}</TD>
+                  <TD>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-100">
+                        {p.riskScore}
+                      </span>
+                      <Badge
+                        variant={
+                          p.riskLevel === "Critical"
+                            ? "danger"
+                            : p.riskLevel === "High"
+                              ? "warning"
+                              : "success"
+                        }
+                      >
+                        {p.riskLevel}
+                      </Badge>
+                    </div>
+                  </TD>
+                  <TD>
                     <Badge
                       variant={
-                        p.riskBand === "Severe"
-                          ? "danger"
-                          : p.riskBand === "High"
-                            ? "warning"
-                            : "success"
+                        p.kycStatus === "Approved"
+                          ? "success"
+                          : p.kycStatus === "Failed"
+                            ? "danger"
+                            : "outline"
                       }
                     >
-                      {p.riskBand}
+                      {p.kycStatus}
                     </Badge>
-                  </div>
-                </TD>
-                <TD>
-                  <Badge
-                    variant={
-                      p.kycStatus === "Approved"
-                        ? "success"
-                        : p.kycStatus === "Failed"
-                          ? "danger"
-                          : "outline"
-                    }
-                  >
-                    {p.kycStatus}
-                  </Badge>
-                </TD>
-                <TD className="text-xs text-slate-200">{p.cddTier}</TD>
-                <TD className="text-xs text-slate-200">{p.alertCount}</TD>
-                <TD className="font-mono text-[11px] text-slate-400">
-                  {new Date(p.lastActivity).toLocaleString()}
-                </TD>
-              </TR>
-            ))}
+                  </TD>
+                  <TD className="text-xs text-slate-200">{p.cddTier}</TD>
+                  <TD className="text-xs text-slate-200">{alertCount}</TD>
+                  <TD className="font-mono text-[11px] text-slate-400">
+                    {new Date(p.lastActivity).toLocaleString()}
+                  </TD>
+                </TR>
+              );
+            })}
           </TBody>
         </Table>
       </Card>

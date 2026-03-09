@@ -18,7 +18,7 @@ import {
 } from "@/modules/risk-engine";
 
 type RiskEngineAction =
-  | { type: "PROCESS_EVENT"; payload: SimulatorEventInput }
+  | { type: "COMMIT"; payload: { state: RiskEngineState; sequence: number } }
   | { type: "RESET" };
 
 interface RiskEngineContextValue {
@@ -33,15 +33,11 @@ function reducer(
   action: RiskEngineAction,
 ): { state: RiskEngineState; sequence: number } {
   switch (action.type) {
-    case "PROCESS_EVENT": {
-      const seq = current.sequence + 1;
-      const engineEvent = buildEngineEventFromSimulator(seq, action.payload);
-      const result = processEvent(current.state, engineEvent);
+    case "COMMIT":
       return {
-        state: result.state,
-        sequence: seq,
+        state: action.payload.state,
+        sequence: action.payload.sequence,
       };
-    }
     case "RESET":
       return { state: createInitialState(), sequence: 0 };
     default:
@@ -67,7 +63,10 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         const nextSeq = internal.sequence + 1;
         const engineEvent = buildEngineEventFromSimulator(nextSeq, input);
         const result = processEvent(internal.state, engineEvent);
-        dispatch({ type: "PROCESS_EVENT", payload: input });
+        dispatch({
+          type: "COMMIT",
+          payload: { state: result.state, sequence: nextSeq },
+        });
         return result;
       },
       reset: () => dispatch({ type: "RESET" }),

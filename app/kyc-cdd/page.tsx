@@ -1,11 +1,16 @@
+"use client";
+
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { mockPlayers } from "@/data/mockPlayers";
+import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 
 export default function KycCddPage() {
-  const pending = mockPlayers.filter((p) => p.kycStatus === "Pending").length;
-  const failed = mockPlayers.filter((p) => p.kycStatus === "Failed").length;
-  const enhanced = mockPlayers.filter((p) => p.cddTier === "Enhanced").length;
+  const { state } = useRiskEngine();
+  const players = Object.values(state.players);
+
+  const pending = players.filter((p) => p.kycStatus === "Pending").length;
+  const failed = players.filter((p) => p.kycStatus === "Failed").length;
+  const enhanced = players.filter((p) => p.cddTier === "Enhanced").length;
 
   return (
     <>
@@ -16,7 +21,7 @@ export default function KycCddPage() {
             Verification and due diligence workload in the simulator.
           </p>
         </div>
-        <Badge variant="outline">Workflow only &mdash; no real data</Badge>
+        <Badge variant="outline">Driven by live simulator events</Badge>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

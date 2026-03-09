@@ -1,9 +1,14 @@
+"use client";
+
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
-import { mockAlerts } from "@/data/mockAlerts";
+import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 
 export default function AlertsPage() {
+  const { state } = useRiskEngine();
+  const alerts = state.alerts;
+
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
@@ -14,7 +19,7 @@ export default function AlertsPage() {
           </p>
         </div>
         <Badge variant="outline">
-          {mockAlerts.filter((a) => a.status !== "Closed").length} active
+          {alerts.filter((a) => a.status === "Open").length} active
         </Badge>
       </div>
 
@@ -31,44 +36,51 @@ export default function AlertsPage() {
             </TR>
           </THead>
           <TBody>
-            {mockAlerts.map((a) => (
-              <TR key={a.id}>
-                <TD className="font-mono text-[11px] text-slate-300">{a.id}</TD>
-                <TD className="text-xs text-slate-100">{a.ruleName}</TD>
-                <TD className="text-xs text-slate-200">
-                  {a.playerName} ({a.playerId})
-                </TD>
-                <TD>
-                  <Badge
-                    variant={
-                      a.severity === "Critical"
-                        ? "danger"
-                        : a.severity === "High"
-                          ? "warning"
-                          : "outline"
-                    }
-                  >
-                    {a.severity}
-                  </Badge>
-                </TD>
-                <TD className="font-mono text-[11px] text-slate-400">
-                  {new Date(a.createdAt).toLocaleString()}
-                </TD>
-                <TD>
-                  <Badge
-                    variant={
-                      a.status === "Closed"
-                        ? "success"
-                        : a.status === "Escalated"
+            {alerts.map((a) => {
+              const player = state.players[a.playerId];
+              return (
+                <TR key={a.id}>
+                  <TD className="font-mono text-[11px] text-slate-300">
+                    {a.id}
+                  </TD>
+                  <TD className="text-xs text-slate-100">
+                    {a.ruleTriggered}
+                  </TD>
+                  <TD className="text-xs text-slate-200">
+                    {player ? `${player.name} (${a.playerId})` : a.playerId}
+                  </TD>
+                  <TD>
+                    <Badge
+                      variant={
+                        a.severity === "Critical"
                           ? "danger"
-                          : "outline"
-                    }
-                  >
-                    {a.status}
-                  </Badge>
-                </TD>
-              </TR>
-            ))}
+                          : a.severity === "High" || a.severity === "Sportsbook"
+                            ? "warning"
+                            : "outline"
+                      }
+                    >
+                      {a.severity}
+                    </Badge>
+                  </TD>
+                  <TD className="font-mono text-[11px] text-slate-400">
+                    {new Date(a.timestamp).toLocaleString()}
+                  </TD>
+                  <TD>
+                    <Badge
+                      variant={
+                        a.status === "Closed"
+                          ? "success"
+                          : a.status === "Open"
+                            ? "warning"
+                            : "outline"
+                      }
+                    >
+                      {a.status}
+                    </Badge>
+                  </TD>
+                </TR>
+              );
+            })}
           </TBody>
         </Table>
       </Card>
