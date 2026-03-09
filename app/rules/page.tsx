@@ -43,8 +43,9 @@ const CONDITION_FIELDS = ["amount", "segments", "riskScore"] as const;
 const OPERATORS = ["equals", "greater_than", "less_than", "contains"] as const;
 
 export default function RulesPage() {
-  const { state, addRule, toggleRule } = useRiskEngine();
+  const { state, addRule, toggleRule, updateRule, removeRule } = useRiskEngine();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [eventType, setEventType] =
@@ -66,6 +67,7 @@ export default function RulesPage() {
   const rules = useMemo(() => state.rules ?? [], [state.rules]);
 
   function resetForm() {
+    setEditingRuleId(null);
     setName("");
     setDescription("");
     setEventType("any");
@@ -122,29 +124,91 @@ export default function RulesPage() {
       actions.push({ type: "assignSegment", value: segmentValue.trim() });
     }
 
-    const id = `rule_${Date.now()}`;
+    if (editingRuleId) {
+      // Update existing rule
+      const existing = rules.find((r) => r.id === editingRuleId);
+      if (existing) {
+        updateRule(editingRuleId, {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          enabled,
+          eventType: eventType === "any" ? "any" : eventType,
+          conditions: conditions.map((c) => ({
+            field: c.field,
+            operator: c.operator,
+            value:
+              c.field === "amount" || c.operator !== "equals"
+                ? Number(c.value)
+                : c.value,
+          })),
+          actions,
+        });
+      }
+    } else {
+      // Create new rule
+      const id = `rule_${Date.now()}`;
+      const rule: Rule = {
+        id,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        enabled,
+        type: "custom",
+        eventType: eventType === "any" ? "any" : eventType,
+        conditions: conditions.map((c) => ({
+          field: c.field,
+          operator: c.operator,
+          value:
+            c.field === "amount" || c.operator !== "equals"
+              ? Number(c.value)
+              : c.value,
+        })),
+        actions,
+      };
+      addRule(rule);
+    }
 
-    const rule: Rule = {
-      id,
-      name: name.trim(),
-      description: description.trim() || undefined,
-      enabled,
-      type: "custom",
-      eventType: eventType === "any" ? "any" : eventType,
-      conditions: conditions.map((c) => ({
-        field: c.field,
-        operator: c.operator,
-        value:
-          c.field === "amount" || c.operator !== "equals"
-            ? Number(c.value)
-            : c.value,
-      })),
-      actions,
-    };
-
-    addRule(rule);
     resetForm();
     setIsModalOpen(false);
+  }
+
+  function handleEdit(rule: Rule) {
+    setEditingRuleId(rule.id);
+    setName(rule.name);
+    setDescription(rule.description ?? "");
+    setEventType((rule.eventType as (typeof EVENT_TYPES)[number]) ?? "any");
+    setEnabled(rule.enabled);
+
+    setConditions(
+      (rule.conditions ?? []).map((c) => ({
+        field: c.field as (typeof CONDITION_FIELDS)[number],
+        operator: c.operator as (typeof OPERATORS)[number],
+        value: String(c.value ?? ""),
+      })),
+    );
+
+    const risk = rule.actions.find((a) => a.type === "riskScoreIncrease");
+    setRiskIncrease(
+      risk && "value" in risk ? String((risk as any).value ?? "0") : "0",
+    );
+
+    const alert = rule.actions.find((a) => a.type === "createAlert");
+    setCreateAlert(!!alert);
+    setAlertSeverity(
+      (alert && "severity" in alert
+        ? (alert as any).severity
+        : "Medium") as "Low" | "Medium" | "High" | "Critical",
+    );
+
+    const hasCase = rule.actions.some((a) => a.type === "createCase");
+    setCreateCase(hasCase);
+
+    const seg = rule.actions.find((a) => a.type === "assignSegment");
+    setAssignSegment(!!seg);
+    setSegmentValue(
+      seg && "value" in seg ? String((seg as any).value ?? "") : "",
+    );
+
+    setIsModalOpen(true);
   }
 
   return (
@@ -160,7 +224,10 @@ export default function RulesPage() {
           <Badge variant="outline">{rules.length} rules</Badge>
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              resetForm();
+              setIsModalOpen(true);
+            }}
             className="rounded-md border border-emerald-500/70 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-100 hover:bg-emerald-500/20"
           >
             Create Rule
@@ -177,7 +244,7 @@ export default function RulesPage() {
               <th className="px-3 py-2.5 font-semibold">Event</th>
               <th className="px-3 py-2.5 font-semibold">Enabled</th>
               <th className="px-3 py-2.5 font-semibold">Actions</th>
-              <th className="px-3 py-2.5 font-semibold">Toggle</th>
+              <th className="px-3 py-2.5 font-semibold">Manage</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-900/80">
@@ -213,13 +280,31 @@ export default function RulesPage() {
                   {summarizeActions(r.actions) || "—"}
                 </td>
                 <td className="px-3 py-2 align-middle">
-                  <button
-                    type="button"
-                    onClick={() => toggleRule(r.id)}
-                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-200 hover:border-emerald-500/70 hover:text-emerald-200"
-                  >
-                    {r.enabled ? "Disable" : "Enable"}
-                  </button>
+                  <div className="flex flex-wrap gap-1 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(r)}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-slate-200 hover:border-sky-500/70 hover:text-sky-200"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleRule(r.id)}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-slate-200 hover:border-emerald-500/70 hover:text-emerald-200"
+                    >
+                      {r.enabled ? "Disable" : "Enable"}
+                    </button>
+                    {r.type === "custom" && (
+                      <button
+                        type="button"
+                        onClick={() => removeRule(r.id)}
+                        className="rounded-md border border-red-700 bg-red-900/40 px-2 py-0.5 text-red-200 hover:border-red-500 hover:bg-red-900/70"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -242,7 +327,7 @@ export default function RulesPage() {
           <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-950 p-4 shadow-xl shadow-black/60">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-50">
-                Create Custom Rule
+                {editingRuleId ? "Edit Rule" : "Create Custom Rule"}
               </h2>
               <button
                 type="button"

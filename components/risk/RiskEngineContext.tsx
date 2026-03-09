@@ -27,6 +27,8 @@ type RiskEngineAction =
     }
   | { type: "ADD_RULE"; payload: Rule }
   | { type: "TOGGLE_RULE"; payload: { id: string } }
+  | { type: "UPDATE_RULE"; payload: { id: string; updates: Partial<Rule> } }
+  | { type: "REMOVE_RULE"; payload: { id: string } }
   | { type: "RESET" };
 
 interface RiskEngineContextValue {
@@ -39,6 +41,8 @@ interface RiskEngineContextValue {
   ) => void;
   addRule: (rule: Rule) => void;
   toggleRule: (id: string) => void;
+  updateRule: (id: string, updates: Partial<Rule>) => void;
+  removeRule: (id: string) => void;
   reset: () => void;
 }
 
@@ -87,6 +91,26 @@ function reducer(
         },
         sequence: current.sequence,
       };
+    case "UPDATE_RULE":
+      return {
+        state: {
+          ...current.state,
+          rules: (current.state.rules ?? []).map((r) =>
+            r.id === action.payload.id ? { ...r, ...action.payload.updates } : r,
+          ),
+        },
+        sequence: current.sequence,
+      };
+    case "REMOVE_RULE":
+      return {
+        state: {
+          ...current.state,
+          rules: (current.state.rules ?? []).filter(
+            (r) => r.id !== action.payload.id,
+          ),
+        },
+        sequence: current.sequence,
+      };
     case "RESET":
       return { state: createInitialState(), sequence: 0 };
     default:
@@ -123,6 +147,10 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
       addRule: (rule: Rule) => dispatch({ type: "ADD_RULE", payload: rule }),
       toggleRule: (id: string) =>
         dispatch({ type: "TOGGLE_RULE", payload: { id } }),
+      updateRule: (id: string, updates: Partial<Rule>) =>
+        dispatch({ type: "UPDATE_RULE", payload: { id, updates } }),
+      removeRule: (id: string) =>
+        dispatch({ type: "REMOVE_RULE", payload: { id } }),
       reset: () => dispatch({ type: "RESET" }),
     }),
     [internal],
