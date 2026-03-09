@@ -8,6 +8,7 @@ import {
   type AlertSeverity,
   evaluateRules,
 } from "./ruleEngine";
+import { updatePlayerSegments } from "../segmentation/segmentationEngine";
 import { mockPlayers } from "@/data/mockPlayers";
 
 export interface EngineAlert {
@@ -45,6 +46,7 @@ export interface EngineEventLogEntry {
   riskDelta: number;
   triggeredRules: string[];
   metadata?: Record<string, unknown>;
+  amount?: number;
 }
 
 export interface PlayerRiskState extends PlayerRiskSnapshot {
@@ -117,6 +119,7 @@ export function createInitialState(): RiskEngineState {
       canWithdraw: true,
       isFrozen: false,
       accountStatus: "Active",
+      segments: [],
     };
   }
 
@@ -162,6 +165,7 @@ export function processEvent(
       canWithdraw: true,
       isFrozen: false,
       accountStatus: "Active",
+      segments: [],
     };
 
   const player: PlayerRiskState =
@@ -190,6 +194,7 @@ export function processEvent(
     kycLevel: playerWithActivity.kycLevel,
     depositTimestamps: playerWithActivity.depositTimestamps,
     deviceIds: playerWithActivity.deviceIds ?? [],
+    segments: playerWithActivity.segments ?? [],
   };
 
   const ruleResults = evaluateRules(event, snapshotForRules);
@@ -285,17 +290,25 @@ export function processEvent(
     riskDelta,
     triggeredRules: ruleResults.map((r) => r.ruleId),
     metadata: event.metadata,
+    amount: event.amount,
+  };
+
+  const nextEvents = [logEntry, ...state.events];
+
+  const playerWithSegments: PlayerRiskState = {
+    ...updatedPlayer,
+    segments: updatePlayerSegments(updatedPlayer, nextEvents),
   };
 
   const nextState: RiskEngineState = {
     players: {
       ...state.players,
-      [event.playerId]: updatedPlayer,
+      [event.playerId]: playerWithSegments,
     },
     alerts: [...state.alerts, ...newAlerts],
     cases: [...state.cases, ...newCases],
     bets: [...state.bets, ...newBets],
-    events: [logEntry, ...state.events].slice(0, 100),
+    events: nextEvents.slice(0, 100),
   };
 
   return {

@@ -5,10 +5,17 @@ import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function PlayersPage() {
   const { state } = useRiskEngine();
+  const [segmentFilter, setSegmentFilter] = useState<string>("__all");
   const players = Object.values(state.players);
+
+  const filteredPlayers =
+    segmentFilter === "__all"
+      ? players
+      : players.filter((p) => p.segments?.includes(segmentFilter));
 
   return (
     <>
@@ -19,9 +26,27 @@ export default function PlayersPage() {
             Portfolio of players monitored by the risk platform.
           </p>
         </div>
-        <Badge variant="outline">
-          {players.length} players in current simulation
-        </Badge>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+            <span>Filter by segment</span>
+            <select
+              value={segmentFilter}
+              onChange={(e) => setSegmentFilter(e.target.value)}
+              className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+            >
+              <option value="__all">All</option>
+              <option value="High Risk">High Risk</option>
+              <option value="Critical Risk">Critical Risk</option>
+              <option value="VPN Users">VPN Users</option>
+              <option value="Multi Device Users">Multi Device Users</option>
+              <option value="Chargeback Players">Chargeback Players</option>
+              <option value="High Depositors">High Depositors</option>
+            </select>
+          </div>
+          <Badge variant="outline">
+            {filteredPlayers.length} players
+          </Badge>
+        </div>
       </div>
 
       <Card>
@@ -31,6 +56,7 @@ export default function PlayersPage() {
               <TH>Player ID</TH>
               <TH>Name</TH>
               <TH>Risk Score</TH>
+              <TH>Segments</TH>
               <TH>KYC Status</TH>
               <TH>CDD Tier</TH>
               <TH>Alert Count</TH>
@@ -38,7 +64,7 @@ export default function PlayersPage() {
             </TR>
           </THead>
           <TBody>
-            {players.map((p) => {
+            {filteredPlayers.map((p) => {
               const alertCount = state.alerts.filter(
                 (a) => a.playerId === p.playerId,
               ).length;
@@ -76,6 +102,20 @@ export default function PlayersPage() {
                       >
                         {p.riskLevel}
                       </Badge>
+                    </div>
+                  </TD>
+                  <TD className="text-xs text-slate-200">
+                    <div className="flex flex-wrap gap-1">
+                      {(p.segments ?? []).slice(0, 3).map((s) => (
+                        <Badge key={s} variant="outline">
+                          {s}
+                        </Badge>
+                      ))}
+                      {(p.segments?.length ?? 0) > 3 && (
+                        <span className="text-[10px] text-slate-500">
+                          +{(p.segments?.length ?? 0) - 3} more
+                        </span>
+                      )}
                     </div>
                   </TD>
                   <TD>

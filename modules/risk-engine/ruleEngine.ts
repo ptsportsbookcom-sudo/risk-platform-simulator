@@ -24,6 +24,7 @@ export interface PlayerRiskSnapshot {
   kycLevel: KycLevel;
   depositTimestamps: string[];
   deviceIds: string[];
+  segments: string[];
 }
 
 export interface EngineEvent {
@@ -121,6 +122,20 @@ export function evaluateRules(
       delta: 20,
       createAlert: true,
       alertSeverity: "Sportsbook",
+    });
+  }
+
+  // Rule 7: High Risk Withdrawal (segment-based)
+  if (
+    event.eventType === "withdraw" &&
+    player.segments.includes("High Risk")
+  ) {
+    results.push({
+      ruleId: "R100_HIGH_RISK_WITHDRAWAL",
+      description: "Withdrawal by a high-risk segmented player.",
+      delta: 30,
+      createAlert: true,
+      alertSeverity: "High",
     });
   }
 

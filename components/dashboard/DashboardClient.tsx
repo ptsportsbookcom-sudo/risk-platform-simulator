@@ -17,6 +17,19 @@ export function DashboardClient() {
   const enhancedCdd = players.filter((p) => p.cddTier === "Enhanced").length;
   const negativeBalances = players.filter((p) => p.negativeBalance).length;
 
+  const highRiskSegment = players.filter((p) =>
+    p.segments?.includes("High Risk"),
+  ).length;
+  const vpnUsersSegment = players.filter((p) =>
+    p.segments?.includes("VPN Users"),
+  ).length;
+  const chargebackSegment = players.filter((p) =>
+    p.segments?.includes("Chargeback Players"),
+  ).length;
+  const multiDeviceSegment = players.filter((p) =>
+    p.segments?.includes("Multi Device Users"),
+  ).length;
+
   const totalExposureSports = 18500;
   const totalExposureCasino = 42000;
 
@@ -146,6 +159,38 @@ export function DashboardClient() {
               <p className="mt-1 text-[11px] text-slate-400">
                 Escalate for collections / affordability review.
               </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          title="Segment Distribution"
+          description="Counts of key risk and security segments."
+        >
+          <div className="space-y-2 text-xs text-slate-300">
+            <div className="flex items-center justify-between">
+              <span>High Risk</span>
+              <span className="font-semibold">
+                {formatNumber(highRiskSegment)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>VPN Users</span>
+              <span className="font-semibold">
+                {formatNumber(vpnUsersSegment)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Chargeback Players</span>
+              <span className="font-semibold">
+                {formatNumber(chargebackSegment)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Multi Device Users</span>
+              <span className="font-semibold">
+                {formatNumber(multiDeviceSegment)}
+              </span>
             </div>
           </div>
         </Card>

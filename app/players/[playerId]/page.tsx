@@ -190,6 +190,18 @@ export default function PlayerDetailPage() {
                 {player.accountStatus}
               </Badge>
             </div>
+            {player.segments && player.segments.length > 0 && (
+              <div className="pt-2">
+                <span className="text-[11px] text-slate-400">Segments</span>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {player.segments.map((s) => (
+                    <Badge key={s} variant="outline">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 

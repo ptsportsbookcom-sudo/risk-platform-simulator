@@ -82,10 +82,15 @@ export default function SimulatorPage() {
 
   function triggerEvent(button: ButtonConfig) {
     const metadata = buildSecurityMetadata(button.engineType);
+    const amount =
+      button.engineType === "deposit"
+        ? Math.floor(500 + Math.random() * 2000)
+        : undefined;
     processSimulatorEvent({
       playerId: DEFAULT_PLAYER_ID,
       eventType: button.engineType,
       metadata,
+      amount,
     });
   }
 
