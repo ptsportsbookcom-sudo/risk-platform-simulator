@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
+import Link from "next/link";
 
 export default function PlayersPage() {
   const { state } = useRiskEngine();
@@ -44,9 +45,21 @@ export default function PlayersPage() {
               return (
                 <TR key={p.playerId}>
                   <TD className="font-mono text-[11px] text-slate-300">
-                    {p.playerId}
+                    <Link
+                      href={`/players/${p.playerId}`}
+                      className="text-emerald-300 hover:underline"
+                    >
+                      {p.playerId}
+                    </Link>
                   </TD>
-                  <TD className="text-xs text-slate-100">{p.name}</TD>
+                  <TD className="text-xs text-slate-100">
+                    <Link
+                      href={`/players/${p.playerId}`}
+                      className="hover:underline"
+                    >
+                      {p.name}
+                    </Link>
+                  </TD>
                   <TD>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-slate-100">

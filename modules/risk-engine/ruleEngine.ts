@@ -23,6 +23,7 @@ export interface PlayerRiskSnapshot {
   riskLevel: RiskLevel;
   kycLevel: KycLevel;
   depositTimestamps: string[];
+  deviceIds: string[];
 }
 
 export interface EngineEvent {
@@ -121,6 +122,27 @@ export function evaluateRules(
       createAlert: true,
       alertSeverity: "Sportsbook",
     });
+  }
+
+  // Rule 6: Multi Device Login
+  if (
+    event.metadata &&
+    (event.eventType === "login" || event.eventType === "multi_device_login")
+  ) {
+    const deviceIdRaw = (event.metadata as { deviceId?: unknown }).deviceId;
+    if (typeof deviceIdRaw === "string" && deviceIdRaw.length > 0) {
+      const knownDevices = player.deviceIds;
+      const isNewDevice = !knownDevices.includes(deviceIdRaw);
+      if (isNewDevice && knownDevices.length >= 1) {
+        results.push({
+          ruleId: "R6_MULTI_DEVICE_LOGIN",
+          description: "Player logged in from a new device.",
+          delta: 30,
+          createAlert: true,
+          alertSeverity: "High",
+        });
+      }
+    }
   }
 
   return results;

@@ -44,6 +44,7 @@ export interface EngineEventLogEntry {
   newScore: number;
   riskDelta: number;
   triggeredRules: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface PlayerRiskState extends PlayerRiskSnapshot {
@@ -54,6 +55,11 @@ export interface PlayerRiskState extends PlayerRiskSnapshot {
   lastActivity: string;
   balance: number;
   negativeBalance: boolean;
+  registrationDate: string;
+  canDeposit: boolean;
+  canWithdraw: boolean;
+  isFrozen: boolean;
+  accountStatus: "Active" | "Blocked" | "Frozen" | "Closed";
 }
 
 export interface RiskEngineState {
@@ -98,6 +104,7 @@ export function createInitialState(): RiskEngineState {
       riskLevel,
       kycLevel: toKycLevel(p.kycStatus),
       depositTimestamps: [],
+      deviceIds: [],
       name: p.name,
       country: p.country,
       kycStatus: p.kycStatus,
@@ -105,6 +112,11 @@ export function createInitialState(): RiskEngineState {
       lastActivity: p.lastActivity,
       balance: p.balance,
       negativeBalance: p.negativeBalance,
+      registrationDate: p.lastActivity,
+      canDeposit: true,
+      canWithdraw: true,
+      isFrozen: false,
+      accountStatus: "Active",
     };
   }
 
@@ -137,6 +149,7 @@ export function processEvent(
       riskLevel: getRiskLevel(0),
       kycLevel: "KYC_0",
       depositTimestamps: [],
+      deviceIds: [],
       name: `Simulated Player ${event.playerId}`,
       country: "XX",
       kycStatus: "Not Started",
@@ -144,6 +157,11 @@ export function processEvent(
       lastActivity: event.timestamp,
       balance: 0,
       negativeBalance: false,
+      registrationDate: event.timestamp,
+      canDeposit: true,
+      canWithdraw: true,
+      isFrozen: false,
+      accountStatus: "Active",
     };
 
   const player: PlayerRiskState =
@@ -171,6 +189,7 @@ export function processEvent(
     riskLevel: playerWithActivity.riskLevel,
     kycLevel: playerWithActivity.kycLevel,
     depositTimestamps: playerWithActivity.depositTimestamps,
+    deviceIds: playerWithActivity.deviceIds ?? [],
   };
 
   const ruleResults = evaluateRules(event, snapshotForRules);
@@ -180,10 +199,20 @@ export function processEvent(
   const newScore = clampScore(previousScore + totalDelta);
   const newRiskLevel = getRiskLevel(newScore);
 
+  const deviceFromEvent = (event.metadata as { deviceId?: unknown } | undefined)
+    ?.deviceId;
+  let updatedDeviceIds = playerWithActivity.deviceIds ?? [];
+  if (typeof deviceFromEvent === "string" && deviceFromEvent.length > 0) {
+    if (!updatedDeviceIds.includes(deviceFromEvent)) {
+      updatedDeviceIds = [...updatedDeviceIds, deviceFromEvent];
+    }
+  }
+
   const updatedPlayer: PlayerRiskState = {
     ...playerWithActivity,
     riskScore: newScore,
     riskLevel: newRiskLevel,
+    deviceIds: updatedDeviceIds,
   };
 
   const newAlerts: EngineAlert[] = [];
@@ -255,6 +284,7 @@ export function processEvent(
     newScore,
     riskDelta,
     triggeredRules: ruleResults.map((r) => r.ruleId),
+    metadata: event.metadata,
   };
 
   const nextState: RiskEngineState = {

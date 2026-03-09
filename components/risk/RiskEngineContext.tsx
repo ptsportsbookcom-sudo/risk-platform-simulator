@@ -11,6 +11,7 @@ import {
   type RiskEngineState,
   type SimulatorEventInput,
   type ProcessEventResult,
+  type PlayerRiskState,
   createInitialState,
   processEvent,
   buildEngineEventFromSimulator,
@@ -19,12 +20,20 @@ import {
 
 type RiskEngineAction =
   | { type: "COMMIT"; payload: { state: RiskEngineState; sequence: number } }
+  | {
+      type: "UPDATE_PLAYER";
+      payload: { playerId: string; patch: Partial<PlayerRiskState> };
+    }
   | { type: "RESET" };
 
 interface RiskEngineContextValue {
   state: RiskEngineState;
   sequence: number;
   processSimulatorEvent: (input: SimulatorEventInput) => ProcessEventResult;
+  updatePlayerStatus: (
+    playerId: string,
+    patch: Partial<PlayerRiskState>,
+  ) => void;
   reset: () => void;
 }
 
@@ -38,6 +47,23 @@ function reducer(
         state: action.payload.state,
         sequence: action.payload.sequence,
       };
+    case "UPDATE_PLAYER": {
+      const existing = current.state.players[action.payload.playerId];
+      if (!existing) return current;
+      return {
+        state: {
+          ...current.state,
+          players: {
+            ...current.state.players,
+            [action.payload.playerId]: {
+              ...existing,
+              ...action.payload.patch,
+            },
+          },
+        },
+        sequence: current.sequence,
+      };
+    }
     case "RESET":
       return { state: createInitialState(), sequence: 0 };
     default:
@@ -69,6 +95,8 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         });
         return result;
       },
+      updatePlayerStatus: (playerId: string, patch: Partial<PlayerRiskState>) =>
+        dispatch({ type: "UPDATE_PLAYER", payload: { playerId, patch } }),
       reset: () => dispatch({ type: "RESET" }),
     }),
     [internal],

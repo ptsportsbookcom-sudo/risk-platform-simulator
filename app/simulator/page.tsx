@@ -40,6 +40,35 @@ const complianceEvents: ButtonConfig[] = [
   { label: "Affordability Breach", engineType: "cdd_threshold_breach" },
 ];
 
+const SAMPLE_COUNTRIES = ["UK", "DE", "SE", "FI", "NO", "IE", "NL"];
+const SAMPLE_DEVICES = ["iphone-12", "android-pixel-7", "macbook-pro", "ipad-air"];
+
+function randomChoice<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomIp() {
+  return `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+}
+
+function buildSecurityMetadata(type: EngineEventType) {
+  if (
+    type === "login" ||
+    type === "vpn_login" ||
+    type === "multi_device_login"
+  ) {
+    const deviceId = randomChoice(SAMPLE_DEVICES);
+    const vpnDetected = type === "vpn_login";
+    return {
+      ipAddress: randomIp(),
+      country: randomChoice(SAMPLE_COUNTRIES),
+      deviceId,
+      vpnDetected,
+    };
+  }
+  return undefined;
+}
+
 function formatEventType(type: EngineEventType) {
   return type
     .split("_")
@@ -52,9 +81,11 @@ export default function SimulatorPage() {
   const events = state.events;
 
   function triggerEvent(button: ButtonConfig) {
+    const metadata = buildSecurityMetadata(button.engineType);
     processSimulatorEvent({
       playerId: DEFAULT_PLAYER_ID,
       eventType: button.engineType,
+      metadata,
     });
   }
 
