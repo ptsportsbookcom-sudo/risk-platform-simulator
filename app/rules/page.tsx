@@ -476,6 +476,33 @@ export default function RulesPage() {
                     ))}
                   </select>
                 </div>
+                <div className="flex-1 space-y-1">
+                  <label className="block text-slate-300">Rule Group</label>
+                  <select
+                    value={group}
+                    onChange={(e) =>
+                      setGroup(e.target.value as typeof group)
+                    }
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  >
+                    <option value="sportsbook_exposure">sportsbook_exposure</option>
+                    <option value="stake_monitoring">stake_monitoring</option>
+                    <option value="deposit_velocity">deposit_velocity</option>
+                    <option value="bonus_abuse">bonus_abuse</option>
+                    <option value="withdrawal_anomaly">withdrawal_anomaly</option>
+                    <option value="multi_account">multi_account</option>
+                    <option value="vpn_detection">vpn_detection</option>
+                    <option value="geo_mismatch">geo_mismatch</option>
+                    <option value="deposit_structuring">deposit_structuring</option>
+                    <option value="transaction_volume">transaction_volume</option>
+                    <option value="cdd_threshold">cdd_threshold</option>
+                    <option value="affordability_threshold">
+                      affordability_threshold
+                    </option>
+                    <option value="player_control">player_control</option>
+                    <option value="manual_review">manual_review</option>
+                  </select>
+                </div>
                 <div className="space-y-1">
                   <label className="block text-slate-300">Enabled</label>
                   <button
