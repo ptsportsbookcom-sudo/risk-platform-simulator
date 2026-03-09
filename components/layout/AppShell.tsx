@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { RiskEngineProvider } from "@/components/risk/RiskEngineContext";
 
 type NavItem = {
   label: string;
@@ -92,11 +93,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 px-4 py-6 lg:px-6">
-          <div className="mx-auto flex h-full max-w-6xl flex-col gap-4">
-            {children}
-          </div>
-        </main>
+        <RiskEngineProvider>
+          <main className="flex-1 bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 px-4 py-6 lg:px-6">
+            <div className="mx-auto flex h-full max-w-6xl flex-col gap-4">
+              {children}
+            </div>
+          </main>
+        </RiskEngineProvider>
       </div>
     </div>
   );
