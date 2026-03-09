@@ -25,7 +25,7 @@ const playerEvents: ButtonConfig[] = [
 const sportsbookEvents: ButtonConfig[] = [
   { label: "Place Bet", engineType: "place_bet" },
   { label: "Large Bet", engineType: "large_bet" },
-  { label: "Suspicious Bet", engineType: "large_bet" },
+  { label: "Suspicious Bet", engineType: "suspicious_bet" },
 ];
 
 const fraudEvents: ButtonConfig[] = [
@@ -66,6 +66,22 @@ function buildSecurityMetadata(type: EngineEventType) {
       vpnDetected,
     };
   }
+  if (
+    type === "place_bet" ||
+    type === "large_bet" ||
+    type === "suspicious_bet"
+  ) {
+    const deviceId = randomChoice(SAMPLE_DEVICES);
+    return {
+      ipAddress: randomIp(),
+      country: randomChoice(SAMPLE_COUNTRIES),
+      deviceId,
+      // simple sportsbook context
+      eventName: "Champions League Final",
+      market: "Match Winner",
+      odds: Number((1.5 + Math.random() * 3).toFixed(2)),
+    };
+  }
   return undefined;
 }
 
@@ -85,7 +101,11 @@ export default function SimulatorPage() {
     const amount =
       button.engineType === "deposit"
         ? Math.floor(500 + Math.random() * 2000)
-        : undefined;
+        : button.engineType === "place_bet" ||
+            button.engineType === "large_bet" ||
+            button.engineType === "suspicious_bet"
+          ? Math.floor(50 + Math.random() * 950)
+          : undefined;
     processSimulatorEvent({
       playerId: DEFAULT_PLAYER_ID,
       eventType: button.engineType,

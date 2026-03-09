@@ -15,6 +15,7 @@ export type EngineEventType =
   | "casino_session"
   | "place_bet"
   | "large_bet"
+  | "suspicious_bet"
   | "vpn_login"
   | "multi_device_login"
   | "chargeback"

@@ -54,6 +54,13 @@ const CONDITION_FIELDS = [
   "bet_count",
   "bet_count_1h",
   "total_stake_amount",
+  "stake_amount",
+  "possible_payout",
+  "total_stake_event",
+  "total_stake_market",
+  "total_payout_exposure_event",
+  "total_payout_exposure_market",
+  "net_exposure_event",
 ] as const;
 
 const OPERATORS = ["equals", "greater_than", "less_than", "contains"] as const;

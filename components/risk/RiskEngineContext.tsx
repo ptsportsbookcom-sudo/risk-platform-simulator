@@ -43,6 +43,10 @@ interface RiskEngineContextValue {
   toggleRule: (id: string) => void;
   updateRule: (id: string, updates: Partial<Rule>) => void;
   removeRule: (id: string) => void;
+  updateHighRiskBet: (
+    betId: string,
+    patch: { stake?: number; odds?: number; status?: "pending" | "approved" | "rejected" },
+  ) => void;
   reset: () => void;
 }
 
@@ -151,6 +155,28 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "UPDATE_RULE", payload: { id, updates } }),
       removeRule: (id: string) =>
         dispatch({ type: "REMOVE_RULE", payload: { id } }),
+      updateHighRiskBet: (betId, patch) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              highRiskBets: internal.state.highRiskBets.map((b) =>
+                b.id === betId
+                  ? {
+                      ...b,
+                      ...patch,
+                      possiblePayout:
+                        patch.stake != null || patch.odds != null
+                          ? (patch.stake ?? b.stake) * (patch.odds ?? b.odds)
+                          : b.possiblePayout,
+                    }
+                  : b,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
       reset: () => dispatch({ type: "RESET" }),
     }),
     [internal],

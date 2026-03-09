@@ -41,6 +41,18 @@ export interface EngineBet {
   amount?: number;
 }
 
+export interface HighRiskBet {
+  id: string;
+  betId: string;
+  playerId: string;
+  market: string;
+  stake: number;
+  odds: number;
+  possiblePayout: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+}
+
 export interface EngineEventLogEntry {
   id: string;
   playerId: string;
@@ -77,6 +89,7 @@ export interface RiskEngineState {
   alerts: EngineAlert[];
   cases: EngineCase[];
   bets: EngineBet[];
+  highRiskBets: HighRiskBet[];
   events: EngineEventLogEntry[];
   rules: Rule[];
 }
@@ -134,6 +147,7 @@ export function createInitialState(): RiskEngineState {
     alerts: [],
     cases: [],
     bets: [],
+    highRiskBets: [],
     events: [],
     rules,
   };
@@ -204,7 +218,11 @@ export function processEvent(
   };
 
   const provisionalEvents = [provisionalLog, ...state.events];
-  const metrics = computePlayerMetrics(event.playerId, provisionalEvents);
+  const metrics = computePlayerMetrics(
+    event.playerId,
+    provisionalEvents,
+    provisionalLog,
+  );
 
   const snapshotForRules: PlayerRiskSnapshot = {
     playerId: playerWithActivity.playerId,
@@ -236,6 +254,7 @@ export function processEvent(
   const newCases: EngineCase[] = [];
   const newBets: EngineBet[] = [];
   const assignedSegmentsFromRules: string[] = [];
+  const newHighRiskBets: HighRiskBet[] = [];
 
   for (const rule of ruleResults) {
     if (rule.createAlert && rule.alertSeverity) {
@@ -278,6 +297,38 @@ export function processEvent(
     }
   }
 
+  // High-risk bet queue: any bet event that triggers at least one alert
+  if (
+    (event.eventType === "place_bet" ||
+      event.eventType === "large_bet" ||
+      event.eventType === "suspicious_bet") &&
+    ruleResults.some((r) => r.createAlert)
+  ) {
+    const meta = (event.metadata ?? {}) as {
+      market?: string;
+      odds?: number;
+    };
+    const stake = event.amount ?? 0;
+    const odds = meta.odds ?? 1;
+    const possiblePayout = stake * odds;
+    const reason = ruleResults
+      .filter((r) => r.createAlert)
+      .map((r) => r.description)
+      .join(", ");
+
+    newHighRiskBets.push({
+      id: nextId("HBET"),
+      betId: event.id,
+      playerId: event.playerId,
+      market: meta.market ?? "UNKNOWN_MARKET",
+      stake,
+      odds,
+      possiblePayout,
+      reason,
+      status: "pending",
+    });
+  }
+
   const logEntry: EngineEventLogEntry = {
     id: event.id,
     playerId: event.playerId,
@@ -313,6 +364,7 @@ export function processEvent(
     alerts: [...state.alerts, ...newAlerts],
     cases: [...state.cases, ...newCases],
     bets: [...state.bets, ...newBets],
+    highRiskBets: [...state.highRiskBets, ...newHighRiskBets],
     events: nextEvents.slice(0, 100),
     rules: state.rules,
   };
@@ -349,7 +401,9 @@ export function getDashboardStats(state: RiskEngineState) {
       (p.segments ?? []).includes("Critical Risk"),
   ).length;
   const pendingCases = state.cases.filter((c) => c.status === "Open").length;
-  const highRiskBets = state.bets.length;
+  const highRiskBets = state.highRiskBets.filter(
+    (b) => b.status === "pending",
+  ).length;
 
   return {
     activeAlerts,
