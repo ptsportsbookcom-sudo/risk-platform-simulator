@@ -10,7 +10,7 @@ function summarizeActions(actions: Rule["actions"]) {
   const parts: string[] = [];
   for (const a of actions) {
     if (a.type === "createAlert") {
-      parts.push(`Alert (${a.severity})`);
+      parts.push("Alert");
     } else if (a.type === "createCase") {
       parts.push("Case");
     } else if (a.type === "assignSegment") {
@@ -91,8 +91,8 @@ export default function RulesPage() {
   >([]);
 
   const [createAlert, setCreateAlert] = useState(false);
-  const [alertSeverity, setAlertSeverity] =
-    useState<"Low" | "Medium" | "High" | "Critical">("Medium");
+  const [severity, setSeverity] =
+    useState<"critical" | "high" | "medium" | "low">("medium");
   const [createCase, setCreateCase] = useState(false);
   const [segmentValue, setSegmentValue] = useState("");
   const [assignSegment, setAssignSegment] = useState(false);
@@ -144,7 +144,7 @@ export default function RulesPage() {
     setGroup("manual_review");
     setConditions([]);
     setCreateAlert(false);
-    setAlertSeverity("Medium");
+    setSeverity("medium");
     setCreateCase(false);
     setSegmentValue("");
     setAssignSegment(false);
@@ -180,7 +180,7 @@ export default function RulesPage() {
 
     const actions: Rule["actions"] = [];
     if (createAlert) {
-      actions.push({ type: "createAlert", severity: alertSeverity });
+      actions.push({ type: "createAlert" });
     }
     if (createCase) {
       actions.push({ type: "createCase" });
@@ -199,6 +199,7 @@ export default function RulesPage() {
           enabled,
           domain,
           group,
+          severity,
           eventType: eventType === "any" ? "any" : eventType,
           conditions: conditions.map((c) => ({
             field: c.field,
@@ -222,6 +223,7 @@ export default function RulesPage() {
         type: "custom",
         domain,
         group,
+        severity,
         eventType: eventType === "any" ? "any" : eventType,
         conditions: conditions.map((c) => ({
           field: c.field,
@@ -251,8 +253,12 @@ export default function RulesPage() {
     );
     setGroup((rule.group as any) ?? "manual_review");
 
+    // UI only supports flat conditions; if conditions are a nested group, we ignore them here.
+    const flatConditions = Array.isArray(rule.conditions)
+      ? rule.conditions
+      : [];
     setConditions(
-      (rule.conditions ?? []).map((c) => ({
+      flatConditions.map((c) => ({
         field: c.field as (typeof CONDITION_FIELDS)[number],
         operator: c.operator as (typeof OPERATORS)[number],
         value: String(c.value ?? ""),
@@ -261,11 +267,7 @@ export default function RulesPage() {
 
     const alert = rule.actions.find((a) => a.type === "createAlert");
     setCreateAlert(!!alert);
-    setAlertSeverity(
-      (alert && "severity" in alert
-        ? (alert as any).severity
-        : "Medium") as "Low" | "Medium" | "High" | "Critical",
-    );
+    setSeverity((rule.severity as any) ?? "medium");
 
     const hasCase = rule.actions.some((a) => a.type === "createCase");
     setCreateCase(hasCase);
@@ -573,6 +575,26 @@ export default function RulesPage() {
                     <option value="manual_review">manual_review</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1">
+                  <label className="block text-slate-300">Severity</label>
+                  <select
+                    value={severity}
+                    onChange={(e) =>
+                      setSeverity(
+                        e.target.value as "critical" | "high" | "medium" | "low",
+                      )
+                    }
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  >
+                    <option value="critical">critical</option>
+                    <option value="high">high</option>
+                    <option value="medium">medium</option>
+                    <option value="low">low</option>
+                  </select>
+                </div>
                 <div className="space-y-1">
                   <label className="block text-slate-300">Enabled</label>
                   <button
@@ -667,24 +689,6 @@ export default function RulesPage() {
                         checked={createAlert}
                         onChange={(e) => setCreateAlert(e.target.checked)}
                       />
-                      <select
-                        value={alertSeverity}
-                        onChange={(e) =>
-                          setAlertSeverity(
-                            e.target.value as
-                              | "Low"
-                              | "Medium"
-                              | "High"
-                              | "Critical",
-                          )
-                        }
-                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
-                      >
-                        <option value="Low">Low</option>
-                        <option value="Medium">Medium</option>
-                        <option value="High">High</option>
-                        <option value="Critical">Critical</option>
-                      </select>
                     </div>
                   </div>
                   <div className="space-y-1">

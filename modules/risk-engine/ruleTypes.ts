@@ -1,4 +1,4 @@
-import type { EngineEventType, AlertSeverity } from "./ruleEngine";
+import type { EngineEventType } from "./ruleEngine";
 
 export type RuleType = "system" | "custom";
 
@@ -36,8 +36,17 @@ export interface RuleCondition {
   value: unknown;
 }
 
+export interface ConditionGroup {
+  operator: "AND" | "OR";
+  rules: (RuleCondition | ConditionGroup)[];
+}
+
+export type RuleConditions = RuleCondition[] | ConditionGroup;
+
+export type RuleSeverity = "critical" | "high" | "medium" | "low";
+
 export type RuleAction =
-  | { type: "createAlert"; severity: AlertSeverity }
+  | { type: "createAlert" }
   | { type: "createCase" }
   | { type: "assignSegment"; value: string };
 
@@ -49,8 +58,9 @@ export interface Rule {
   type: RuleType;
   domain: RiskDomain;
   group: RuleGroup;
+  severity?: RuleSeverity;
   eventType?: EngineEventType | "any";
-  conditions: RuleCondition[];
+  conditions: RuleConditions;
   actions: RuleAction[];
 }
 

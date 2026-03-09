@@ -1,4 +1,10 @@
-import type { Rule, RuleCondition } from "./ruleTypes";
+import type {
+  Rule,
+  RuleCondition,
+  ConditionGroup,
+  RuleConditions,
+  RuleSeverity,
+} from "./ruleTypes";
 
 export type EngineEventType =
   | "player_created"
@@ -103,6 +109,65 @@ function conditionMatches(
   }
 
   return false;
+}
+
+function evaluateConditionNode(
+  node: RuleCondition | ConditionGroup,
+  event: EngineEvent,
+  player: PlayerRiskSnapshot,
+): boolean {
+  const maybeGroup = node as ConditionGroup;
+  if (maybeGroup && Array.isArray(maybeGroup.rules) && maybeGroup.operator) {
+    const group = maybeGroup;
+    if (group.operator === "AND") {
+      return group.rules.every((child) =>
+        evaluateConditionNode(child as RuleCondition | ConditionGroup, event, player),
+      );
+    }
+    // OR
+    return group.rules.some((child) =>
+      evaluateConditionNode(child as RuleCondition | ConditionGroup, event, player),
+    );
+  }
+
+  return conditionMatches(node as RuleCondition, event, player);
+}
+
+function evaluateConditions(
+  conditions: RuleConditions | undefined,
+  event: EngineEvent,
+  player: PlayerRiskSnapshot,
+): boolean {
+  if (!conditions) return true;
+
+  if (Array.isArray(conditions)) {
+    if (conditions.length === 0) return true;
+    return conditions.every((c) =>
+      evaluateConditionNode(c as RuleCondition | ConditionGroup, event, player),
+    );
+  }
+
+  return evaluateConditionNode(
+    conditions as ConditionGroup,
+    event,
+    player,
+  );
+}
+
+function mapRuleSeverityToAlert(
+  severity: RuleSeverity | undefined,
+): AlertSeverity {
+  switch (severity) {
+    case "critical":
+      return "Critical";
+    case "high":
+      return "High";
+    case "low":
+      return "Low";
+    case "medium":
+    default:
+      return "Medium";
+  }
 }
 
 export function evaluateRules(
@@ -213,21 +278,17 @@ export function evaluateRules(
   );
 
   for (const rule of activeCustom) {
-    const matches =
-      (rule.conditions ?? []).length === 0 ||
-      rule.conditions.every((c) => conditionMatches(c, event, player));
+    const matches = evaluateConditions(rule.conditions as RuleConditions, event, player);
 
     if (!matches) continue;
 
     let createAlert = false;
-    let alertSeverity: AlertSeverity | undefined;
     let createCase = false;
     const assignSegments: string[] = [];
 
     for (const action of rule.actions ?? []) {
       if (action.type === "createAlert") {
         createAlert = true;
-        alertSeverity = action.severity;
       } else if (action.type === "createCase") {
         createCase = true;
       } else if (action.type === "assignSegment") {
@@ -240,7 +301,9 @@ export function evaluateRules(
         ruleId: rule.id,
         description: rule.description ?? rule.name,
         createAlert,
-        alertSeverity,
+        alertSeverity: createAlert
+          ? mapRuleSeverityToAlert(rule.severity ?? "medium")
+          : undefined,
         createCase,
         assignSegments: assignSegments.length ? assignSegments : undefined,
       });
