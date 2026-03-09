@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #020617;
+  --foreground: #e5e7eb;
 }
 
 @theme inline {
@@ -12,15 +12,37 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.card-surface {
+  @apply rounded-xl border border-slate-800/80 bg-slate-900/60 shadow-sm shadow-slate-950/40;
+}
+
+.subtle-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b #020617;
+}
+
+.subtle-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #1e293b;
+  border-radius: 999px;
+}
+
