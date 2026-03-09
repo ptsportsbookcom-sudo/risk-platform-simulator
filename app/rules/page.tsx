@@ -36,6 +36,13 @@ const EVENT_TYPES = [
   "cdd_threshold_breach",
 ] as const;
 
+const DOMAIN_OPTIONS = [
+  "sportsbook_trading",
+  "fraud_abuse",
+  "aml_compliance",
+  "operations",
+] as const;
+
 const CONDITION_FIELDS = [
   "amount",
   "segments",
@@ -60,6 +67,8 @@ export default function RulesPage() {
   const [eventType, setEventType] =
     useState<(typeof EVENT_TYPES)[number]>("any");
   const [enabled, setEnabled] = useState(true);
+  const [domain, setDomain] =
+    useState<(typeof DOMAIN_OPTIONS)[number]>("operations");
 
   const [conditions, setConditions] = useState<
     { field: (typeof CONDITION_FIELDS)[number]; operator: (typeof OPERATORS)[number]; value: string }[]
@@ -80,6 +89,7 @@ export default function RulesPage() {
     setDescription("");
     setEventType("any");
     setEnabled(true);
+    setDomain("operations");
     setConditions([]);
     setCreateAlert(false);
     setAlertSeverity("Medium");
@@ -135,6 +145,7 @@ export default function RulesPage() {
           name: name.trim(),
           description: description.trim() || undefined,
           enabled,
+          domain,
           eventType: eventType === "any" ? "any" : eventType,
           conditions: conditions.map((c) => ({
             field: c.field,
@@ -156,7 +167,7 @@ export default function RulesPage() {
         description: description.trim() || undefined,
         enabled,
         type: "custom",
-        domain: "operations",
+        domain,
         eventType: eventType === "any" ? "any" : eventType,
         conditions: conditions.map((c) => ({
           field: c.field,
@@ -181,6 +192,9 @@ export default function RulesPage() {
     setDescription(rule.description ?? "");
     setEventType((rule.eventType as (typeof EVENT_TYPES)[number]) ?? "any");
     setEnabled(rule.enabled);
+    setDomain(
+      (rule.domain as (typeof DOMAIN_OPTIONS)[number]) ?? "operations",
+    );
 
     setConditions(
       (rule.conditions ?? []).map((c) => ({
@@ -372,6 +386,24 @@ export default function RulesPage() {
                     {EVENT_TYPES.map((et) => (
                       <option key={et} value={et}>
                         {et}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1 space-y-1">
+                  <label className="block text-slate-300">Risk Domain</label>
+                  <select
+                    value={domain}
+                    onChange={(e) =>
+                      setDomain(
+                        e.target.value as (typeof DOMAIN_OPTIONS)[number],
+                      )
+                    }
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  >
+                    {DOMAIN_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
                       </option>
                     ))}
                   </select>
