@@ -156,6 +156,7 @@ export default function RulesPage() {
         description: description.trim() || undefined,
         enabled,
         type: "custom",
+        domain: "operations",
         eventType: eventType === "any" ? "any" : eventType,
         conditions: conditions.map((c) => ({
           field: c.field,

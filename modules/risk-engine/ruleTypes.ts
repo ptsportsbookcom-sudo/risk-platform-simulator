@@ -2,6 +2,12 @@ import type { EngineEventType, AlertSeverity } from "./ruleEngine";
 
 export type RuleType = "system" | "custom";
 
+export type RiskDomain =
+  | "sportsbook_trading"
+  | "fraud_abuse"
+  | "aml_compliance"
+  | "operations";
+
 export type ConditionOperator =
   | "equals"
   | "greater_than"
@@ -25,6 +31,7 @@ export interface Rule {
   description?: string;
   enabled: boolean;
   type: RuleType;
+  domain: RiskDomain;
   eventType?: EngineEventType | "any";
   conditions: RuleCondition[];
   actions: RuleAction[];
