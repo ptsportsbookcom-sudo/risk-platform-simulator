@@ -23,6 +23,7 @@ export interface PlayerRiskSnapshot {
   depositTimestamps: string[];
   deviceIds: string[];
   segments: string[];
+  metrics?: { [metricName: string]: number };
 }
 
 export interface EngineEvent {
@@ -67,6 +68,8 @@ function conditionMatches(
     left = player.segments ?? [];
   } else if (field === "eventType") {
     left = event.eventType;
+  } else if (player.metrics && field in player.metrics) {
+    left = player.metrics[field as keyof typeof player.metrics];
   } else {
     // Fallback: try metadata
     left = (event.metadata ?? ({} as Record<string, unknown>))[

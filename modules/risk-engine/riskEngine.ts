@@ -8,6 +8,11 @@ import {
   evaluateRules,
 } from "./ruleEngine";
 import { updatePlayerSegments } from "../segmentation/segmentationEngine";
+import {
+  computePlayerMetrics,
+  emptyPlayerMetrics,
+  type PlayerMetrics,
+} from "../metrics/metricsEngine";
 import type { Rule } from "./ruleTypes";
 import { mockPlayers } from "@/data/mockPlayers";
 
@@ -46,7 +51,13 @@ export interface EngineEventLogEntry {
   amount?: number;
 }
 
-export interface PlayerRiskState extends PlayerRiskSnapshot {
+export interface PlayerRiskState {
+  playerId: string;
+  kycLevel: KycLevel;
+  depositTimestamps: string[];
+  deviceIds: string[];
+  segments: string[];
+  metrics?: PlayerMetrics;
   name: string;
   country: string;
   kycStatus: string;
@@ -112,6 +123,7 @@ export function createInitialState(): RiskEngineState {
       isFrozen: false,
       accountStatus: "Active",
       segments: [],
+      metrics: emptyPlayerMetrics(),
     };
   }
 
@@ -180,12 +192,27 @@ export function processEvent(
       event.eventType === "kyc_failure" ? "Failed" : player.kycStatus,
   };
 
+  // Build a provisional event log (without triggered rules yet) to feed metrics
+  const provisionalLog: EngineEventLogEntry = {
+    id: event.id,
+    playerId: event.playerId,
+    eventType: event.eventType,
+    timestamp: event.timestamp,
+    triggeredRules: [],
+    metadata: event.metadata,
+    amount: event.amount,
+  };
+
+  const provisionalEvents = [provisionalLog, ...state.events];
+  const metrics = computePlayerMetrics(event.playerId, provisionalEvents);
+
   const snapshotForRules: PlayerRiskSnapshot = {
     playerId: playerWithActivity.playerId,
     kycLevel: playerWithActivity.kycLevel,
     depositTimestamps: playerWithActivity.depositTimestamps,
     deviceIds: playerWithActivity.deviceIds ?? [],
     segments: playerWithActivity.segments ?? [],
+    metrics: metrics as unknown as { [metricName: string]: number },
   };
 
   const ruleResults = evaluateRules(event, snapshotForRules, state.rules ?? []);
@@ -202,6 +229,7 @@ export function processEvent(
   const updatedPlayer: PlayerRiskState = {
     ...playerWithActivity,
     deviceIds: updatedDeviceIds,
+    metrics,
   };
 
   const newAlerts: EngineAlert[] = [];

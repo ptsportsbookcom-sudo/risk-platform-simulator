@@ -291,6 +291,50 @@ export default function PlayerDetailPage() {
             </div>
           </div>
         </Card>
+
+        <Card
+          title="Player Metrics"
+          description="Aggregated activity metrics for this player."
+        >
+          <div className="space-y-2 text-xs text-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Deposits (24h)</span>
+              <span className="font-semibold">
+                {player.metrics?.deposit_count_24h ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Total Deposits</span>
+              <span className="font-semibold">
+                {player.metrics?.total_deposit_amount ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Withdrawals (24h)</span>
+              <span className="font-semibold">
+                {player.metrics?.withdrawal_count_24h ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Total Withdrawals</span>
+              <span className="font-semibold">
+                {player.metrics?.total_withdrawal_amount ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Bets Placed</span>
+              <span className="font-semibold">
+                {player.metrics?.bet_count ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Total Stake</span>
+              <span className="font-semibold">
+                {player.metrics?.total_stake_amount ?? 0}
+              </span>
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

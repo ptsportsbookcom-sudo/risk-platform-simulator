@@ -36,7 +36,18 @@ const EVENT_TYPES = [
   "cdd_threshold_breach",
 ] as const;
 
-const CONDITION_FIELDS = ["amount", "segments"] as const;
+const CONDITION_FIELDS = [
+  "amount",
+  "segments",
+  "deposit_count_24h",
+  "withdrawal_count_24h",
+  "total_deposit_amount",
+  "total_withdrawal_amount",
+  "bonus_claim_count",
+  "bet_count",
+  "bet_count_1h",
+  "total_stake_amount",
+] as const;
 
 const OPERATORS = ["equals", "greater_than", "less_than", "contains"] as const;
 
