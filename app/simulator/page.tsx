@@ -139,7 +139,7 @@ export default function SimulatorPage() {
 
       <Card
         title="Live Event Log"
-        description="Chronological stream of simulator events and resulting risk scores."
+        description="Chronological stream of simulator events and triggered rules."
       >
         {events.length === 0 ? (
           <p className="text-xs text-slate-400">
@@ -152,8 +152,6 @@ export default function SimulatorPage() {
                 <TH>Event ID</TH>
                 <TH>Type</TH>
                 <TH>Timestamp</TH>
-                <TH>Δ Risk</TH>
-                <TH>New Score</TH>
                 <TH>Rules</TH>
               </TR>
             </THead>
@@ -169,10 +167,6 @@ export default function SimulatorPage() {
                   <TD className="font-mono text-[11px] text-slate-400">
                     {new Date(e.timestamp).toLocaleTimeString()}
                   </TD>
-                  <TD className="text-xs text-slate-200">
-                    {e.riskDelta >= 0 ? `+${e.riskDelta}` : e.riskDelta}
-                  </TD>
-                  <TD className="text-xs text-slate-200">{e.newScore}</TD>
                   <TD className="text-[11px] text-slate-400">
                     {e.triggeredRules.length === 0
                       ? "—"

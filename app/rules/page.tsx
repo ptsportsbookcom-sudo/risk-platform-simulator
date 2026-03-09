@@ -9,14 +9,16 @@ import { useMemo, useState } from "react";
 function summarizeActions(actions: Rule["actions"]) {
   const parts: string[] = [];
   for (const a of actions) {
-    if (a.type === "riskScoreIncrease") {
-      parts.push(`+${a.value} risk`);
-    } else if (a.type === "createAlert") {
+    if (a.type === "createAlert") {
       parts.push(`Alert (${a.severity})`);
-    } else if (a.type === "createCase") {
-      parts.push("Case");
+    } else if (a.type === "openCase") {
+      parts.push("Open Case");
     } else if (a.type === "assignSegment") {
       parts.push(`Segment: ${a.value}`);
+    } else if (a.type === "blockAction") {
+      parts.push("Block Action");
+    } else if (a.type === "requestApproval") {
+      parts.push("Request Approval");
     }
   }
   return parts.join(", ");
@@ -38,7 +40,7 @@ const EVENT_TYPES = [
   "cdd_threshold_breach",
 ] as const;
 
-const CONDITION_FIELDS = ["amount", "segments", "riskScore"] as const;
+const CONDITION_FIELDS = ["amount", "segments"] as const;
 
 const OPERATORS = ["equals", "greater_than", "less_than", "contains"] as const;
 
@@ -56,13 +58,14 @@ export default function RulesPage() {
     { field: (typeof CONDITION_FIELDS)[number]; operator: (typeof OPERATORS)[number]; value: string }[]
   >([]);
 
-  const [riskIncrease, setRiskIncrease] = useState<string>("0");
   const [createAlert, setCreateAlert] = useState(false);
   const [alertSeverity, setAlertSeverity] =
     useState<"Low" | "Medium" | "High" | "Critical">("Medium");
-  const [createCase, setCreateCase] = useState(false);
+  const [openCase, setOpenCase] = useState(false);
   const [segmentValue, setSegmentValue] = useState("");
   const [assignSegment, setAssignSegment] = useState(false);
+  const [blockAction, setBlockAction] = useState(false);
+  const [requestApproval, setRequestApproval] = useState(false);
 
   const rules = useMemo(() => state.rules ?? [], [state.rules]);
 
@@ -73,12 +76,13 @@ export default function RulesPage() {
     setEventType("any");
     setEnabled(true);
     setConditions([]);
-    setRiskIncrease("0");
     setCreateAlert(false);
     setAlertSeverity("Medium");
-    setCreateCase(false);
+    setOpenCase(false);
     setSegmentValue("");
     setAssignSegment(false);
+    setBlockAction(false);
+    setRequestApproval(false);
   }
 
   function handleAddCondition() {
@@ -110,18 +114,20 @@ export default function RulesPage() {
     if (!name.trim()) return;
 
     const actions: Rule["actions"] = [];
-    const numericRisk = Number(riskIncrease);
-    if (!Number.isNaN(numericRisk) && numericRisk !== 0) {
-      actions.push({ type: "riskScoreIncrease", value: numericRisk });
-    }
     if (createAlert) {
       actions.push({ type: "createAlert", severity: alertSeverity });
     }
-    if (createCase) {
-      actions.push({ type: "createCase" });
+    if (openCase) {
+      actions.push({ type: "openCase" });
     }
     if (assignSegment && segmentValue.trim()) {
       actions.push({ type: "assignSegment", value: segmentValue.trim() });
+    }
+    if (blockAction) {
+      actions.push({ type: "blockAction" });
+    }
+    if (requestApproval) {
+      actions.push({ type: "requestApproval" });
     }
 
     if (editingRuleId) {
@@ -186,11 +192,6 @@ export default function RulesPage() {
       })),
     );
 
-    const risk = rule.actions.find((a) => a.type === "riskScoreIncrease");
-    setRiskIncrease(
-      risk && "value" in risk ? String((risk as any).value ?? "0") : "0",
-    );
-
     const alert = rule.actions.find((a) => a.type === "createAlert");
     setCreateAlert(!!alert);
     setAlertSeverity(
@@ -199,10 +200,17 @@ export default function RulesPage() {
         : "Medium") as "Low" | "Medium" | "High" | "Critical",
     );
 
-    const hasCase = rule.actions.some((a) => a.type === "createCase");
-    setCreateCase(hasCase);
+    const hasCase = rule.actions.some((a) => a.type === "openCase");
+    setOpenCase(hasCase);
 
     const seg = rule.actions.find((a) => a.type === "assignSegment");
+    const hasBlock = rule.actions.some((a) => a.type === "blockAction");
+    setBlockAction(hasBlock);
+
+    const hasApproval = rule.actions.some(
+      (a) => a.type === "requestApproval",
+    );
+    setRequestApproval(hasApproval);
     setAssignSegment(!!seg);
     setSegmentValue(
       seg && "value" in seg ? String((seg as any).value ?? "") : "",
@@ -463,17 +471,6 @@ export default function RulesPage() {
                 <div className="grid gap-2 text-[11px] md:grid-cols-2">
                   <div className="space-y-1">
                     <label className="block text-slate-300">
-                      Risk score increase
-                    </label>
-                    <input
-                      type="number"
-                      value={riskIncrease}
-                      onChange={(e) => setRiskIncrease(e.target.value)}
-                      className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-slate-300">
                       Create alert
                     </label>
                     <div className="flex items-center gap-2">
@@ -503,11 +500,11 @@ export default function RulesPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-slate-300">Create case</label>
+                    <label className="block text-slate-300">Open case</label>
                     <input
                       type="checkbox"
-                      checked={createCase}
-                      onChange={(e) => setCreateCase(e.target.checked)}
+                      checked={openCase}
+                      onChange={(e) => setOpenCase(e.target.checked)}
                     />
                   </div>
                   <div className="space-y-1">
@@ -527,6 +524,24 @@ export default function RulesPage() {
                         placeholder="Segment name"
                       />
                     </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-slate-300">Block action</label>
+                    <input
+                      type="checkbox"
+                      checked={blockAction}
+                      onChange={(e) => setBlockAction(e.target.checked)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-slate-300">
+                      Request approval
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={requestApproval}
+                      onChange={(e) => setRequestApproval(e.target.checked)}
+                    />
                   </div>
                 </div>
               </div>

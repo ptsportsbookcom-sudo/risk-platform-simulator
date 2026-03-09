@@ -20,8 +20,6 @@ export type KycLevel = "KYC_0" | "KYC_1" | "KYC_2";
 
 export interface PlayerRiskSnapshot {
   playerId: string;
-  riskScore: number;
-  riskLevel: RiskLevel;
   kycLevel: KycLevel;
   depositTimestamps: string[];
   deviceIds: string[];
@@ -47,10 +45,12 @@ export type AlertSeverity =
 export interface RuleEvaluation {
   ruleId: string;
   description: string;
-  delta: number;
   createAlert: boolean;
   alertSeverity?: AlertSeverity;
-  createCase?: boolean;
+  openCase?: boolean;
+  blockAction?: boolean;
+  requestApproval?: boolean;
+  assignSegments?: string[];
 }
 
 const DEPOSIT_VELOCITY_WINDOW_MINUTES = 10;
@@ -66,8 +66,6 @@ function conditionMatches(
 
   if (field === "amount") {
     left = event.amount ?? 0;
-  } else if (field === "riskScore") {
-    left = player.riskScore;
   } else if (field === "segments") {
     left = player.segments ?? [];
   } else if (field === "eventType") {
@@ -119,7 +117,6 @@ export function evaluateRules(
     results.push({
       ruleId: "R1_DEPOSIT_BEFORE_KYC",
       description: "Deposit before KYC completion (KYC_0).",
-      delta: 50,
       createAlert: true,
       alertSeverity: "Medium",
     });
@@ -138,7 +135,6 @@ export function evaluateRules(
       results.push({
         ruleId: "R2_HIGH_DEPOSIT_VELOCITY",
         description: "High deposit velocity detected.",
-        delta: 30,
         createAlert: true,
         alertSeverity: "High",
       });
@@ -150,7 +146,6 @@ export function evaluateRules(
     results.push({
       ruleId: "R3_VPN_LOGIN",
       description: "Login from VPN / Proxy detected.",
-      delta: 40,
       createAlert: true,
       alertSeverity: "High",
     });
@@ -161,10 +156,9 @@ export function evaluateRules(
     results.push({
       ruleId: "R4_CHARGEBACK",
       description: "Chargeback reported on player account.",
-      delta: 100,
       createAlert: true,
       alertSeverity: "Critical",
-      createCase: true,
+      openCase: true,
     });
   }
 
@@ -173,7 +167,6 @@ export function evaluateRules(
     results.push({
       ruleId: "R5_LARGE_BET",
       description: "Large bet above threshold placed.",
-      delta: 20,
       createAlert: true,
       alertSeverity: "Sportsbook",
     });
@@ -187,7 +180,6 @@ export function evaluateRules(
     results.push({
       ruleId: "R100_HIGH_RISK_WITHDRAWAL",
       description: "Withdrawal by a high-risk segmented player.",
-      delta: 30,
       createAlert: true,
       alertSeverity: "High",
     });
@@ -206,7 +198,6 @@ export function evaluateRules(
         results.push({
           ruleId: "R6_MULTI_DEVICE_LOGIN",
           description: "Player logged in from a new device.",
-          delta: 30,
           createAlert: true,
           alertSeverity: "High",
         });
@@ -228,31 +219,38 @@ export function evaluateRules(
 
     if (!matches) continue;
 
-    let delta = 0;
     let createAlert = false;
     let alertSeverity: AlertSeverity | undefined;
-    let createCase = false;
+    let openCase = false;
+    let blockAction = false;
+    let requestApproval = false;
+    const assignSegments: string[] = [];
 
     for (const action of rule.actions ?? []) {
-      if (action.type === "riskScoreIncrease") {
-        delta += action.value;
-      } else if (action.type === "createAlert") {
+      if (action.type === "createAlert") {
         createAlert = true;
         alertSeverity = action.severity;
-      } else if (action.type === "createCase") {
-        createCase = true;
+      } else if (action.type === "openCase") {
+        openCase = true;
+      } else if (action.type === "blockAction") {
+        blockAction = true;
+      } else if (action.type === "requestApproval") {
+        requestApproval = true;
+      } else if (action.type === "assignSegment") {
+        assignSegments.push(action.value);
       }
-      // assignSegment is handled elsewhere via segmentation / player updates
     }
 
-    if (delta !== 0 || createAlert || createCase) {
+    if (createAlert || openCase || blockAction || requestApproval || assignSegments.length > 0) {
       results.push({
         ruleId: rule.id,
         description: rule.description ?? rule.name,
-        delta,
         createAlert,
         alertSeverity,
-        createCase,
+        openCase,
+        blockAction,
+        requestApproval,
+        assignSegments: assignSegments.length ? assignSegments : undefined,
       });
     }
   }

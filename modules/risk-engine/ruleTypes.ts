@@ -15,10 +15,11 @@ export interface RuleCondition {
 }
 
 export type RuleAction =
-  | { type: "riskScoreIncrease"; value: number }
   | { type: "createAlert"; severity: AlertSeverity }
-  | { type: "createCase" }
-  | { type: "assignSegment"; value: string };
+  | { type: "openCase" }
+  | { type: "assignSegment"; value: string }
+  | { type: "blockAction" }
+  | { type: "requestApproval" };
 
 export interface Rule {
   id: string;

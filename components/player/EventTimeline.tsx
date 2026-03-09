@@ -48,7 +48,7 @@ export function EventTimeline({ playerId }: { playerId: string }) {
   return (
     <Card
       title="Event Timeline"
-      description="Chronological history of all events and their risk impact."
+      description="Chronological history of all events and triggered rules."
     >
       {events.length === 0 ? (
         <p className="text-xs text-slate-400">
@@ -67,13 +67,10 @@ export function EventTimeline({ playerId }: { playerId: string }) {
           </THead>
           <TBody>
             {events.map((e) => {
-              const hasRules = e.triggeredRules.length > 0 && e.riskDelta !== 0;
+              const hasRules = e.triggeredRules.length > 0;
               const ruleLabels = e.triggeredRules.map(
                 (id) => RULE_LABELS[id] ?? id,
               );
-              const impactText = hasRules
-                ? `${e.riskDelta >= 0 ? `+${e.riskDelta}` : e.riskDelta} ${ruleLabels.join(", ")}`
-                : "0";
 
               return (
                 <TR key={e.id}>
@@ -83,8 +80,7 @@ export function EventTimeline({ playerId }: { playerId: string }) {
                   <TD className="text-xs text-slate-100">
                     {formatEventType(e.eventType)}
                   </TD>
-                  <TD className="text-xs text-slate-200">{impactText}</TD>
-                  <TD className="text-[11px] text-slate-400">
+                  <TD className="text-xs text-slate-200">
                     {hasRules ? ruleLabels.join(", ") : "—"}
                   </TD>
                   <TD className="text-[11px] text-slate-500">

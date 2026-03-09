@@ -139,26 +139,6 @@ export default function PlayerDetailPage() {
               </span>
             </div>
             <div className="flex items-center justify-between pt-2">
-              <span className="text-slate-400">Risk Score</span>
-              <span className="text-sm font-semibold text-slate-50">
-                {player.riskScore}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Risk Level</span>
-              <Badge
-                variant={
-                  player.riskLevel === "Critical"
-                    ? "danger"
-                    : player.riskLevel === "High"
-                      ? "warning"
-                      : "success"
-                }
-              >
-                {player.riskLevel}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between pt-2">
               <span className="text-slate-400">KYC Status</span>
               <Badge
                 variant={
@@ -479,7 +459,6 @@ export default function PlayerDetailPage() {
               <TR>
                 <TH>Timestamp</TH>
                 <TH>Type</TH>
-                <TH>Δ Risk</TH>
               </TR>
             </THead>
             <TBody>
@@ -490,9 +469,6 @@ export default function PlayerDetailPage() {
                   </TD>
                   <TD className="text-xs text-slate-100">
                     {formatEventType(e.eventType)}
-                  </TD>
-                  <TD className="text-xs text-slate-200">
-                    {e.riskDelta >= 0 ? `+${e.riskDelta}` : e.riskDelta}
                   </TD>
                 </TR>
               ))}

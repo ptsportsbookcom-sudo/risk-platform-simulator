@@ -55,7 +55,6 @@ export default function PlayersPage() {
             <TR>
               <TH>Player ID</TH>
               <TH>Name</TH>
-              <TH>Risk Score</TH>
               <TH>Segments</TH>
               <TH>KYC Status</TH>
               <TH>CDD Tier</TH>
@@ -85,24 +84,6 @@ export default function PlayersPage() {
                     >
                       {p.name}
                     </Link>
-                  </TD>
-                  <TD>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-100">
-                        {p.riskScore}
-                      </span>
-                      <Badge
-                        variant={
-                          p.riskLevel === "Critical"
-                            ? "danger"
-                            : p.riskLevel === "High"
-                              ? "warning"
-                              : "success"
-                        }
-                      >
-                        {p.riskLevel}
-                      </Badge>
-                    </div>
                   </TD>
                   <TD className="text-xs text-slate-200">
                     <div className="flex flex-wrap gap-1">

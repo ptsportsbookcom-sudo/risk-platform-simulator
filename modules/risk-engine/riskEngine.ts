@@ -1,4 +1,4 @@
-import { getRiskLevel, clampScore, type RiskLevel } from "./riskScore";
+import type { RiskLevel } from "./riskScore";
 import {
   type EngineEvent,
   type EngineEventType,
@@ -42,9 +42,6 @@ export interface EngineEventLogEntry {
   playerId: string;
   eventType: EngineEventType;
   timestamp: string;
-  previousScore: number;
-  newScore: number;
-  riskDelta: number;
   triggeredRules: string[];
   metadata?: Record<string, unknown>;
   amount?: number;
@@ -79,8 +76,6 @@ export interface ProcessEventResult {
   triggeredRules: RuleEvaluation[];
   newAlerts: EngineAlert[];
   newCases: EngineCase[];
-  previousScore: number;
-  newScore: number;
 }
 
 export type SimulatorEventInput = {
@@ -100,12 +95,8 @@ export function createInitialState(): RiskEngineState {
   const players: Record<string, PlayerRiskState> = {};
 
   for (const p of mockPlayers) {
-    const riskScore = 0;
-    const riskLevel: RiskLevel = getRiskLevel(riskScore);
     players[p.id] = {
       playerId: p.id,
-      riskScore,
-      riskLevel,
       kycLevel: toKycLevel(p.kycStatus),
       depositTimestamps: [],
       deviceIds: [],
@@ -153,8 +144,6 @@ export function processEvent(
   const baselinePlayer: PlayerRiskState =
     existingPlayer ?? {
       playerId: event.playerId,
-      riskScore: 0,
-      riskLevel: getRiskLevel(0),
       kycLevel: "KYC_0",
       depositTimestamps: [],
       deviceIds: [],
@@ -194,8 +183,6 @@ export function processEvent(
 
   const snapshotForRules: PlayerRiskSnapshot = {
     playerId: playerWithActivity.playerId,
-    riskScore: playerWithActivity.riskScore,
-    riskLevel: playerWithActivity.riskLevel,
     kycLevel: playerWithActivity.kycLevel,
     depositTimestamps: playerWithActivity.depositTimestamps,
     deviceIds: playerWithActivity.deviceIds ?? [],
@@ -203,11 +190,6 @@ export function processEvent(
   };
 
   const ruleResults = evaluateRules(event, snapshotForRules, state.rules ?? []);
-
-  const totalDelta = ruleResults.reduce((sum, r) => sum + r.delta, 0);
-  const previousScore = baselinePlayer.riskScore;
-  const newScore = clampScore(previousScore + totalDelta);
-  const newRiskLevel = getRiskLevel(newScore);
 
   const deviceFromEvent = (event.metadata as { deviceId?: unknown } | undefined)
     ?.deviceId;
@@ -220,14 +202,13 @@ export function processEvent(
 
   const updatedPlayer: PlayerRiskState = {
     ...playerWithActivity,
-    riskScore: newScore,
-    riskLevel: newRiskLevel,
     deviceIds: updatedDeviceIds,
   };
 
   const newAlerts: EngineAlert[] = [];
   const newCases: EngineCase[] = [];
   const newBets: EngineBet[] = [];
+  const assignedSegmentsFromRules: string[] = [];
 
   for (const rule of ruleResults) {
     if (rule.createAlert && rule.alertSeverity) {
@@ -254,7 +235,7 @@ export function processEvent(
       }
     }
 
-    if (rule.createCase) {
+    if (rule.openCase) {
       const caseRecord: EngineCase = {
         id: nextId("CASE"),
         playerId: event.playerId,
@@ -264,35 +245,17 @@ export function processEvent(
       };
       newCases.push(caseRecord);
     }
+
+    if (rule.assignSegments && rule.assignSegments.length > 0) {
+      assignedSegmentsFromRules.push(...rule.assignSegments);
+    }
   }
 
-  // Case creation when risk score crosses threshold (>150)
-  if (
-    previousScore <= 150 &&
-    newScore > 150 &&
-    !state.cases.some(
-      (c) => c.playerId === event.playerId && c.status === "Open",
-    )
-  ) {
-    const autoCase: EngineCase = {
-      id: nextId("CASE"),
-      playerId: event.playerId,
-      alerts: newAlerts.map((a) => a.id),
-      openedAt: event.timestamp,
-      status: "Open",
-    };
-    newCases.push(autoCase);
-  }
-
-  const riskDelta = newScore - previousScore;
   const logEntry: EngineEventLogEntry = {
     id: event.id,
     playerId: event.playerId,
     eventType: event.eventType,
     timestamp: event.timestamp,
-    previousScore,
-    newScore,
-    riskDelta,
     triggeredRules: ruleResults.map((r) => r.ruleId),
     metadata: event.metadata,
     amount: event.amount,
@@ -300,9 +263,19 @@ export function processEvent(
 
   const nextEvents = [logEntry, ...state.events];
 
+  const mergedSegments = Array.from(
+    new Set([
+      ...((updatedPlayer.segments as string[] | undefined) ?? []),
+      ...assignedSegmentsFromRules,
+    ]),
+  );
+
   const playerWithSegments: PlayerRiskState = {
     ...updatedPlayer,
-    segments: updatePlayerSegments(updatedPlayer, nextEvents),
+    segments: updatePlayerSegments(
+      { ...updatedPlayer, segments: mergedSegments },
+      nextEvents,
+    ),
   };
 
   const nextState: RiskEngineState = {
@@ -322,8 +295,6 @@ export function processEvent(
     triggeredRules: ruleResults,
     newAlerts,
     newCases,
-    previousScore,
-    newScore,
   };
 }
 
@@ -346,7 +317,9 @@ export function buildEngineEventFromSimulator(
 export function getDashboardStats(state: RiskEngineState) {
   const activeAlerts = state.alerts.filter((a) => a.status === "Open").length;
   const highRiskPlayers = Object.values(state.players).filter(
-    (p) => p.riskScore > 150,
+    (p) =>
+      (p.segments ?? []).includes("High Risk") ||
+      (p.segments ?? []).includes("Critical Risk"),
   ).length;
   const pendingCases = state.cases.filter((c) => c.status === "Open").length;
   const highRiskBets = state.bets.length;
