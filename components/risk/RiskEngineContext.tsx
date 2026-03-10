@@ -13,6 +13,7 @@ import {
   type ProcessEventResult,
   type PlayerRiskState,
   type HighRiskBet,
+  type AuditEntry,
   createInitialState,
   processEvent,
   buildEngineEventFromSimulator,
@@ -82,6 +83,7 @@ interface RiskEngineContextValue {
   ) => void;
   escalateAlertToCase: (alertId: string, title?: string) => void;
   reset: () => void;
+  logAudit: (entry: AuditEntry) => void;
 }
 
 function reducer(
@@ -387,6 +389,17 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
               cases: internal.state.cases.map((c) =>
                 c.id === caseId ? { ...c, status: "Closed" } : c,
               ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      logAudit: (entry: AuditEntry) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              auditLog: [...(internal.state.auditLog ?? []), entry],
             },
             sequence: internal.sequence,
           },

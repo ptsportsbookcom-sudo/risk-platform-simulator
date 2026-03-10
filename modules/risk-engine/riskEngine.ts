@@ -99,6 +99,15 @@ export interface RiskEngineState {
   events: EngineEventLogEntry[];
   rules: Rule[];
   segments: Segment[];
+  auditLog: AuditEntry[];
+}
+
+export interface AuditEntry {
+  id: string;
+  playerId: string;
+  action: string;
+  performedBy: string;
+  timestamp: string;
 }
 
 export interface ProcessEventResult {
@@ -159,6 +168,7 @@ export function createInitialState(): RiskEngineState {
     events: [],
     rules,
     segments,
+    auditLog: [],
   };
 }
 
@@ -403,6 +413,7 @@ export function processEvent(
     events: nextEvents.slice(0, 100),
     rules: state.rules,
     segments: [...(state.segments ?? []), ...newSegments],
+    auditLog: state.auditLog,
   };
 
   return {
