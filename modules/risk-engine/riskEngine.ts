@@ -47,12 +47,14 @@ export interface HighRiskBet {
   id: string;
   betId: string;
   playerId: string;
+  eventName: string;
   market: string;
   stake: number;
   odds: number;
   possiblePayout: number;
   reason: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "modified";
+  createdAt: string;
 }
 
 export interface EngineEventLogEntry {
@@ -310,6 +312,7 @@ export function processEvent(
     ruleResults.some((r) => r.createAlert)
   ) {
     const meta = (event.metadata ?? {}) as {
+      eventName?: string;
       market?: string;
       odds?: number;
     };
@@ -325,12 +328,14 @@ export function processEvent(
       id: nextId("HBET"),
       betId: event.id,
       playerId: event.playerId,
+      eventName: meta.eventName ?? "UNKNOWN_EVENT",
       market: meta.market ?? "UNKNOWN_MARKET",
       stake,
       odds,
       possiblePayout,
       reason,
       status: "pending",
+      createdAt: event.timestamp,
     });
   }
 

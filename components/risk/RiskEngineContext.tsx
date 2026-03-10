@@ -12,6 +12,7 @@ import {
   type SimulatorEventInput,
   type ProcessEventResult,
   type PlayerRiskState,
+  type HighRiskBet,
   createInitialState,
   processEvent,
   buildEngineEventFromSimulator,
@@ -62,8 +63,16 @@ interface RiskEngineContextValue {
   removeSegmentFromPlayer: (playerId: string, segmentId: string) => void;
   updateHighRiskBet: (
     betId: string,
-    patch: { stake?: number; odds?: number; status?: "pending" | "approved" | "rejected" },
+    patch: {
+      stake?: number;
+      odds?: number;
+      status?: "pending" | "approved" | "rejected" | "modified";
+    },
   ) => void;
+  addHighRiskBet: (bet: HighRiskBet) => void;
+  approveHighRiskBet: (id: string) => void;
+  rejectHighRiskBet: (id: string) => void;
+  modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) => void;
   reset: () => void;
 }
 
@@ -281,6 +290,66 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
                         patch.stake != null || patch.odds != null
                           ? (patch.stake ?? b.stake) * (patch.odds ?? b.odds)
                           : b.possiblePayout,
+                    }
+                  : b,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      addHighRiskBet: (bet: HighRiskBet) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              highRiskBets: [...internal.state.highRiskBets, bet],
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      approveHighRiskBet: (id: string) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              highRiskBets: internal.state.highRiskBets.map((b) =>
+                b.id === id ? { ...b, status: "approved" } : b,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      rejectHighRiskBet: (id: string) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              highRiskBets: internal.state.highRiskBets.map((b) =>
+                b.id === id ? { ...b, status: "rejected" } : b,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              highRiskBets: internal.state.highRiskBets.map((b) =>
+                b.id === id
+                  ? {
+                      ...b,
+                      ...updates,
+                      possiblePayout:
+                        updates.stake != null || updates.odds != null
+                          ? (updates.stake ?? b.stake) * (updates.odds ?? b.odds)
+                          : b.possiblePayout,
+                      status: "modified",
                     }
                   : b,
               ),

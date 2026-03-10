@@ -29,6 +29,9 @@ export function DashboardClient() {
 
   const totalExposureSports = 18500;
   const totalExposureCasino = 42000;
+  const pendingHighRiskBets = state.highRiskBets.filter(
+    (b) => b.status === "pending",
+  ).length;
 
   return (
     <>
@@ -72,10 +75,10 @@ export function DashboardClient() {
           </div>
         </Card>
 
-        <Card title="High Risk Bets" accent="sky">
+        <Card title="Pending High Risk Bets" accent="sky">
           <div className="flex items-end justify-between">
             <div className="text-3xl font-semibold text-sky-300">
-              {formatNumber(dashboard.highRiskBets)}
+              {formatNumber(pendingHighRiskBets)}
             </div>
             <Badge variant="outline">Sports &amp; Casino</Badge>
           </div>

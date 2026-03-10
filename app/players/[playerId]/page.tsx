@@ -48,6 +48,9 @@ export default function PlayerDetailPage() {
 
   const alertsForPlayer = state.alerts.filter((a) => a.playerId === playerId);
   const casesForPlayer = state.cases.filter((c) => c.playerId === playerId);
+  const highRiskBetsForPlayer = state.highRiskBets.filter(
+    (b) => b.playerId === playerId,
+  );
 
   if (!player) {
     return (
@@ -548,6 +551,70 @@ export default function PlayerDetailPage() {
                     </TR>
                   );
                 })}
+              </TBody>
+            </Table>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-1">
+        <Card
+          title="High-Risk Bets"
+          description="Bets from this player routed to the trading risk monitor."
+        >
+          {highRiskBetsForPlayer.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              No high-risk bets for this player yet.
+            </p>
+          ) : (
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Bet ID</TH>
+                  <TH>Event</TH>
+                  <TH>Market</TH>
+                  <TH>Stake</TH>
+                  <TH>Odds</TH>
+                  <TH>Possible Payout</TH>
+                  <TH>Status</TH>
+                  <TH>Created</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {highRiskBetsForPlayer.map((b) => (
+                  <TR key={b.id}>
+                    <TD className="font-mono text-[11px] text-slate-300">
+                      {b.id}
+                    </TD>
+                    <TD className="text-xs text-slate-200">{b.eventName}</TD>
+                    <TD className="text-xs text-slate-200">{b.market}</TD>
+                    <TD className="text-xs text-slate-200">
+                      €{b.stake.toLocaleString()}
+                    </TD>
+                    <TD className="text-xs text-slate-200">{b.odds}</TD>
+                    <TD className="text-xs text-slate-200">
+                      €{b.possiblePayout.toLocaleString()}
+                    </TD>
+                    <TD className="text-[11px] text-slate-200">
+                      <Badge
+                        variant={
+                          b.status === "pending"
+                            ? "warning"
+                            : b.status === "approved"
+                              ? "success"
+                              : b.status === "modified"
+                                ? "outline"
+                                : "danger"
+                        }
+                      >
+                        {b.status}
+                      </Badge>
+                    </TD>
+                    <TD className="font-mono text-[11px] text-slate-400">
+                      {new Date(b.createdAt).toLocaleString()}
+                    </TD>
+                  </TR>
+                ))}
               </TBody>
             </Table>
           )}
