@@ -29,8 +29,11 @@ export default function PlayerDetailPage() {
     updatePlayerStatus,
     assignSegmentToPlayer,
     removeSegmentFromPlayer,
+    resolveAlert,
+    closeCase,
   } = useRiskEngine();
   const [activeTab, setActiveTab] = useState<ActivityTab>("casino");
+  const [caseNotes, setCaseNotes] = useState<Record<string, string[]>>({});
 
   const player = state.players[playerId];
 
@@ -350,8 +353,8 @@ export default function PlayerDetailPage() {
         </Card>
 
         <Card
-          title="Player Metrics"
-          description="Aggregated activity metrics for this player."
+          title="Recent Metrics"
+          description="Aggregated and time-windowed activity metrics."
         >
           <div className="space-y-2 text-xs text-slate-200">
             <div className="flex items-center justify-between">
@@ -445,6 +448,7 @@ export default function PlayerDetailPage() {
                   <TH>Severity</TH>
                   <TH>Status</TH>
                   <TH>Timestamp</TH>
+                  <TH>Actions</TH>
                 </TR>
               </THead>
               <TBody>
@@ -486,6 +490,26 @@ export default function PlayerDetailPage() {
                     <TD className="font-mono text-[11px] text-slate-400">
                       {new Date(a.timestamp).toLocaleString()}
                     </TD>
+                    <TD className="text-[11px] text-slate-200">
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          type="button"
+                          onClick={() => router.push("/alerts")}
+                          className="rounded-md border border-sky-600 bg-sky-600/10 px-2 py-0.5 text-sky-200 hover:bg-sky-600/20"
+                        >
+                          Open
+                        </button>
+                        {a.status === "Open" && (
+                          <button
+                            type="button"
+                            onClick={() => resolveAlert(a.id)}
+                            className="rounded-md border border-emerald-600 bg-emerald-600/10 px-2 py-0.5 text-emerald-200 hover:bg-emerald-600/20"
+                          >
+                            Resolve
+                          </button>
+                        )}
+                      </div>
+                    </TD>
                   </TR>
                 ))}
               </TBody>
@@ -506,19 +530,27 @@ export default function PlayerDetailPage() {
               <THead>
                 <TR>
                   <TH>Case ID</TH>
+                  <TH>Title</TH>
                   <TH>Priority</TH>
                   <TH>Status</TH>
                   <TH>Created</TH>
+                  <TH>Actions</TH>
                 </TR>
               </THead>
               <TBody>
                 {casesForPlayer.map((c) => {
                   const priority = computeCasePriority(c.id);
+                  const titleAlert = state.alerts.find((a) =>
+                    c.alerts.includes(a.id),
+                  );
+                  const title =
+                    titleAlert?.ruleTriggered ?? `Case for ${playerId}`;
                   return (
                     <TR key={c.id}>
                       <TD className="font-mono text-[11px] text-slate-300">
                         {c.id}
                       </TD>
+                      <TD className="text-xs text-slate-100">{title}</TD>
                       <TD>
                         <Badge
                           variant={
@@ -547,6 +579,47 @@ export default function PlayerDetailPage() {
                       </TD>
                       <TD className="font-mono text-[11px] text-slate-400">
                         {new Date(c.openedAt).toLocaleString()}
+                      </TD>
+                      <TD className="text-[11px] text-slate-200">
+                        <div className="flex flex-wrap gap-1">
+                          <button
+                            type="button"
+                            onClick={() => router.push("/cases")}
+                            className="rounded-md border border-sky-600 bg-sky-600/10 px-2 py-0.5 text-sky-200 hover:bg-sky-600/20"
+                          >
+                            Open
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const note = window.prompt("Add note to case:");
+                              if (!note) return;
+                              setCaseNotes((prev) => ({
+                                ...prev,
+                                [c.id]: [...(prev[c.id] ?? []), note],
+                              }));
+                            }}
+                            className="rounded-md border border-amber-600 bg-amber-600/10 px-2 py-0.5 text-amber-200 hover:bg-amber-600/20"
+                          >
+                            Add Note
+                          </button>
+                          {c.status === "Open" && (
+                            <button
+                              type="button"
+                              onClick={() => closeCase(c.id)}
+                              className="rounded-md border border-emerald-600 bg-emerald-600/10 px-2 py-0.5 text-emerald-200 hover:bg-emerald-600/20"
+                            >
+                              Close
+                            </button>
+                          )}
+                        </div>
+                        {(caseNotes[c.id] ?? []).length > 0 && (
+                          <ul className="mt-1 list-disc pl-4 text-[10px] text-slate-400">
+                            {caseNotes[c.id].map((n, idx) => (
+                              <li key={idx}>{n}</li>
+                            ))}
+                          </ul>
+                        )}
                       </TD>
                     </TR>
                   );
@@ -618,6 +691,15 @@ export default function PlayerDetailPage() {
               </TBody>
             </Table>
           )}
+          <div className="mt-2 text-right">
+            <button
+              type="button"
+              onClick={() => router.push("/high-risk-bets")}
+              className="text-[11px] text-sky-300 hover:underline"
+            >
+              View in High-Risk Bets queue →
+            </button>
+          </div>
         </Card>
       </div>
 

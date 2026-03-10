@@ -73,6 +73,8 @@ interface RiskEngineContextValue {
   approveHighRiskBet: (id: string) => void;
   rejectHighRiskBet: (id: string) => void;
   modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) => void;
+  resolveAlert: (alertId: string) => void;
+  closeCase: (caseId: string) => void;
   reset: () => void;
 }
 
@@ -352,6 +354,32 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
                       status: "modified",
                     }
                   : b,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      resolveAlert: (alertId: string) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              alerts: internal.state.alerts.map((a) =>
+                a.id === alertId ? { ...a, status: "Closed" } : a,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      closeCase: (caseId: string) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              cases: internal.state.cases.map((c) =>
+                c.id === caseId ? { ...c, status: "Closed" } : c,
               ),
             },
             sequence: internal.sequence,
