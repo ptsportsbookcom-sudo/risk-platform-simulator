@@ -15,6 +15,8 @@ import {
 import type { Rule } from "./ruleTypes";
 import { mockPlayers } from "@/data/mockPlayers";
 import { SegmentationEngine, updatePlayerSegments } from "../segmentation/segmentationEngine";
+import { DEFAULT_SEGMENTS } from "../segmentation/segmentRegistry";
+import type { Segment } from "../segmentation/segmentTypes";
 
 export interface EngineAlert {
   id: string;
@@ -92,6 +94,7 @@ export interface RiskEngineState {
   highRiskBets: HighRiskBet[];
   events: EngineEventLogEntry[];
   rules: Rule[];
+  segments: Segment[];
 }
 
 export interface ProcessEventResult {
@@ -141,6 +144,7 @@ export function createInitialState(): RiskEngineState {
   }
 
   const rules: Rule[] = [];
+  const segments: Segment[] = DEFAULT_SEGMENTS;
 
   return {
     players,
@@ -150,6 +154,7 @@ export function createInitialState(): RiskEngineState {
     highRiskBets: [],
     events: [],
     rules,
+    segments,
   };
 }
 
@@ -346,7 +351,21 @@ export function processEvent(
   playersMap.set(event.playerId, { ...updatedPlayer });
   const segmentationEngine = new SegmentationEngine(playersMap);
 
+  // Ensure segments referenced by rules exist in registry; auto-create if needed.
+  const existingSegmentIds = new Set((state.segments ?? []).map((s) => s.id));
+
+  const newSegments: Segment[] = [];
   for (const seg of assignedSegmentsFromRules) {
+    if (!existingSegmentIds.has(seg)) {
+      existingSegmentIds.add(seg);
+      newSegments.push({
+        id: seg,
+        name: seg,
+        description: `System-created segment from rule assignment (${seg})`,
+        domain: "fraud_abuse",
+        createdAt: Date.now(),
+      });
+    }
     segmentationEngine.assignSegment(event.playerId, seg);
   }
 
@@ -374,6 +393,7 @@ export function processEvent(
     highRiskBets: [...state.highRiskBets, ...newHighRiskBets],
     events: nextEvents.slice(0, 100),
     rules: state.rules,
+    segments: [...(state.segments ?? []), ...newSegments],
   };
 
   return {

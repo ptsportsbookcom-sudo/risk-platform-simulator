@@ -3,9 +3,7 @@
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
-import {
-  SEGMENT_ID_TO_NAME,
-} from "@/modules/segmentation/segmentRegistry";
+import { SEGMENT_ID_TO_NAME } from "@/modules/segmentation/segmentRegistry";
 
 function formatNumber(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -20,15 +18,14 @@ export function DashboardClient() {
   const enhancedCdd = players.filter((p) => p.cddTier === "Enhanced").length;
   const negativeBalances = players.filter((p) => p.negativeBalance).length;
 
-  const highRiskCount = players.filter((p) =>
-    p.segments?.includes("high_risk"),
-  ).length;
-  const vipCount = players.filter((p) =>
-    p.segments?.includes("vip"),
-  ).length;
-  const bonusAbuserCount = players.filter((p) =>
-    p.segments?.includes("bonus_abuser"),
-  ).length;
+  const segments = state.segments ?? [];
+
+  const segmentCounts: Record<string, number> = {};
+  for (const seg of segments) {
+    segmentCounts[seg.id] = players.filter((p) =>
+      p.segments?.includes(seg.id),
+    ).length;
+  }
 
   const totalExposureSports = 18500;
   const totalExposureCasino = 42000;
@@ -168,24 +165,22 @@ export function DashboardClient() {
           description="Counts of key risk and security segments."
         >
           <div className="space-y-2 text-xs text-slate-300">
-            <div className="flex items-center justify-between">
-              <span>{SEGMENT_ID_TO_NAME["high_risk"] ?? "High Risk"}</span>
-              <span className="font-semibold">
-                {formatNumber(highRiskCount)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>{SEGMENT_ID_TO_NAME["vip"] ?? "VIP Player"}</span>
-              <span className="font-semibold">
-                {formatNumber(vipCount)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>{SEGMENT_ID_TO_NAME["bonus_abuser"] ?? "Bonus Abuser"}</span>
-              <span className="font-semibold">
-                {formatNumber(bonusAbuserCount)}
-              </span>
-            </div>
+            {segments.map((seg) => (
+              <div
+                key={seg.id}
+                className="flex items-center justify-between"
+              >
+                <span>{seg.name}</span>
+                <span className="font-semibold">
+                  {formatNumber(segmentCounts[seg.id] ?? 0)}
+                </span>
+              </div>
+            ))}
+            {segments.length === 0 && (
+              <p className="text-[11px] text-slate-500">
+                No segments configured yet.
+              </p>
+            )}
           </div>
         </Card>
       </div>

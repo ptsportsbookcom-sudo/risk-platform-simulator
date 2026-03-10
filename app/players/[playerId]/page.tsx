@@ -24,7 +24,12 @@ export default function PlayerDetailPage() {
   const router = useRouter();
   const playerId = decodeURIComponent(params.playerId);
 
-  const { state, updatePlayerStatus } = useRiskEngine();
+  const {
+    state,
+    updatePlayerStatus,
+    assignSegmentToPlayer,
+    removeSegmentFromPlayer,
+  } = useRiskEngine();
   const [activeTab, setActiveTab] = useState<ActivityTab>("casino");
 
   const player = state.players[playerId];
@@ -260,6 +265,54 @@ export default function PlayerDetailPage() {
             >
               Close Account
             </button>
+          </div>
+        </Card>
+
+        <Card
+          title="Manage Segments"
+          description="Manually assign or remove segments for this player."
+        >
+          <div className="space-y-2 text-xs">
+            <div className="flex flex-wrap gap-1 pb-2">
+              {(player.segments ?? []).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => removeSegmentFromPlayer(playerId, s)}
+                  className="flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-100 hover:border-red-500 hover:text-red-200"
+                >
+                  <span>{SEGMENT_ID_TO_NAME[s] ?? s}</span>
+                  <span className="text-slate-500">×</span>
+                </button>
+              ))}
+              {(player.segments?.length ?? 0) === 0 && (
+                <span className="text-[11px] text-slate-500">
+                  No segments assigned yet.
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-400">Add segment</span>
+              <select
+                onChange={(e) => {
+                  const segId = e.target.value;
+                  if (!segId) return;
+                  assignSegmentToPlayer(playerId, segId);
+                  e.target.value = "";
+                }}
+                defaultValue=""
+                className="w-52 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+              >
+                <option value="">Select segment</option>
+                {state.segments
+                  .filter((s) => !(player.segments ?? []).includes(s.id))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
         </Card>
 

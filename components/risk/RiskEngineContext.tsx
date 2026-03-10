@@ -18,6 +18,7 @@ import {
   getDashboardStats,
 } from "@/modules/risk-engine";
 import type { Rule } from "@/modules/risk-engine/ruleTypes";
+import type { Segment } from "@/modules/segmentation/segmentTypes";
 
 type RiskEngineAction =
   | { type: "COMMIT"; payload: { state: RiskEngineState; sequence: number } }
@@ -29,6 +30,17 @@ type RiskEngineAction =
   | { type: "TOGGLE_RULE"; payload: { id: string } }
   | { type: "UPDATE_RULE"; payload: { id: string; updates: Partial<Rule> } }
   | { type: "REMOVE_RULE"; payload: { id: string } }
+  | { type: "CREATE_SEGMENT"; payload: Segment }
+  | { type: "UPDATE_SEGMENT"; payload: { id: string; updates: Partial<Segment> } }
+  | { type: "DELETE_SEGMENT"; payload: { id: string } }
+  | {
+      type: "ASSIGN_SEGMENT_TO_PLAYER";
+      payload: { playerId: string; segmentId: string };
+    }
+  | {
+      type: "REMOVE_SEGMENT_FROM_PLAYER";
+      payload: { playerId: string; segmentId: string };
+    }
   | { type: "RESET" };
 
 interface RiskEngineContextValue {
@@ -43,6 +55,11 @@ interface RiskEngineContextValue {
   toggleRule: (id: string) => void;
   updateRule: (id: string, updates: Partial<Rule>) => void;
   removeRule: (id: string) => void;
+  createSegment: (segment: Segment) => void;
+  updateSegment: (id: string, updates: Partial<Segment>) => void;
+  deleteSegment: (id: string) => void;
+  assignSegmentToPlayer: (playerId: string, segmentId: string) => void;
+  removeSegmentFromPlayer: (playerId: string, segmentId: string) => void;
   updateHighRiskBet: (
     betId: string,
     patch: { stake?: number; odds?: number; status?: "pending" | "approved" | "rejected" },
@@ -115,6 +132,84 @@ function reducer(
         },
         sequence: current.sequence,
       };
+    case "CREATE_SEGMENT":
+      return {
+        state: {
+          ...current.state,
+          segments: [...(current.state.segments ?? []), action.payload],
+        },
+        sequence: current.sequence,
+      };
+    case "UPDATE_SEGMENT":
+      return {
+        state: {
+          ...current.state,
+          segments: (current.state.segments ?? []).map((s) =>
+            s.id === action.payload.id ? { ...s, ...action.payload.updates } : s,
+          ),
+        },
+        sequence: current.sequence,
+      };
+    case "DELETE_SEGMENT": {
+      const remaining = (current.state.segments ?? []).filter(
+        (s) => s.id !== action.payload.id,
+      );
+      const updatedPlayers: RiskEngineState["players"] = {};
+      for (const [id, player] of Object.entries(current.state.players)) {
+        updatedPlayers[id] = {
+          ...player,
+          segments: (player.segments ?? []).filter(
+            (seg) => seg !== action.payload.id,
+          ),
+        };
+      }
+      return {
+        state: {
+          ...current.state,
+          segments: remaining,
+          players: updatedPlayers,
+        },
+        sequence: current.sequence,
+      };
+    }
+    case "ASSIGN_SEGMENT_TO_PLAYER": {
+      const { playerId, segmentId } = action.payload;
+      const existing = current.state.players[playerId];
+      if (!existing) return current;
+      const currentSegments = new Set(existing.segments ?? []);
+      currentSegments.add(segmentId);
+      return {
+        state: {
+          ...current.state,
+          players: {
+            ...current.state.players,
+            [playerId]: {
+              ...existing,
+              segments: Array.from(currentSegments),
+            },
+          },
+        },
+        sequence: current.sequence,
+      };
+    }
+    case "REMOVE_SEGMENT_FROM_PLAYER": {
+      const { playerId, segmentId } = action.payload;
+      const existing = current.state.players[playerId];
+      if (!existing) return current;
+      return {
+        state: {
+          ...current.state,
+          players: {
+            ...current.state.players,
+            [playerId]: {
+              ...existing,
+              segments: (existing.segments ?? []).filter((s) => s !== segmentId),
+            },
+          },
+        },
+        sequence: current.sequence,
+      };
+    }
     case "RESET":
       return { state: createInitialState(), sequence: 0 };
     default:
@@ -155,6 +250,22 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "UPDATE_RULE", payload: { id, updates } }),
       removeRule: (id: string) =>
         dispatch({ type: "REMOVE_RULE", payload: { id } }),
+      createSegment: (segment: Segment) =>
+        dispatch({ type: "CREATE_SEGMENT", payload: segment }),
+      updateSegment: (id: string, updates: Partial<Segment>) =>
+        dispatch({ type: "UPDATE_SEGMENT", payload: { id, updates } }),
+      deleteSegment: (id: string) =>
+        dispatch({ type: "DELETE_SEGMENT", payload: { id } }),
+      assignSegmentToPlayer: (playerId: string, segmentId: string) =>
+        dispatch({
+          type: "ASSIGN_SEGMENT_TO_PLAYER",
+          payload: { playerId, segmentId },
+        }),
+      removeSegmentFromPlayer: (playerId: string, segmentId: string) =>
+        dispatch({
+          type: "REMOVE_SEGMENT_FROM_PLAYER",
+          payload: { playerId, segmentId },
+        }),
       updateHighRiskBet: (betId, patch) =>
         dispatch({
           type: "COMMIT",

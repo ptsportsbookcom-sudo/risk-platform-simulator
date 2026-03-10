@@ -6,17 +6,13 @@ import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 import Link from "next/link";
 import { useState } from "react";
-import {
-  DEFAULT_SEGMENTS,
-  SEGMENT_ID_TO_NAME,
-} from "@/modules/segmentation/segmentRegistry";
-
-const FILTER_SEGMENT_IDS = ["high_risk", "vip", "bonus_abuser"] as const;
+import { SEGMENT_ID_TO_NAME } from "@/modules/segmentation/segmentRegistry";
 
 export default function PlayersPage() {
   const { state } = useRiskEngine();
   const [segmentFilter, setSegmentFilter] = useState<string>("__all");
   const players = Object.values(state.players);
+  const segments = state.segments ?? [];
 
   const filteredPlayers =
     segmentFilter === "__all"
@@ -41,9 +37,9 @@ export default function PlayersPage() {
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
             >
               <option value="__all">All</option>
-              {FILTER_SEGMENT_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {SEGMENT_ID_TO_NAME[id] ?? id}
+              {segments.map((seg) => (
+                <option key={seg.id} value={seg.id}>
+                  {seg.name}
                 </option>
               ))}
             </select>
