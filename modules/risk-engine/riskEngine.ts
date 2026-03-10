@@ -23,8 +23,10 @@ export interface EngineAlert {
   playerId: string;
   ruleTriggered: string;
   severity: AlertSeverity;
-  timestamp: string;
-  status: "Open" | "Closed";
+  timestamp: string; // kept for backwards compatibility (event time)
+  createdAt: string;
+  status: "open" | "investigating" | "resolved" | "dismissed" | "escalated";
+  assignedTo?: string | null;
 }
 
 export interface EngineCase {
@@ -271,7 +273,9 @@ export function processEvent(
         ruleTriggered: rule.ruleId,
         severity: rule.alertSeverity,
         timestamp: event.timestamp,
-        status: "Open",
+        createdAt: event.timestamp,
+        status: "open",
+        assignedTo: null,
       };
       newAlerts.push(alert);
 
@@ -426,7 +430,10 @@ export function buildEngineEventFromSimulator(
 }
 
 export function getDashboardStats(state: RiskEngineState) {
-  const activeAlerts = state.alerts.filter((a) => a.status === "Open").length;
+  const activeAlerts = state.alerts.filter((a) => a.status === "open").length;
+  const investigatingAlerts = state.alerts.filter(
+    (a) => a.status === "investigating",
+  ).length;
   const highRiskPlayers = Object.values(state.players).filter(
     (p) =>
       (p.segments ?? []).includes("High Risk") ||
@@ -439,6 +446,7 @@ export function getDashboardStats(state: RiskEngineState) {
 
   return {
     activeAlerts,
+    investigatingAlerts,
     highRiskPlayers,
     pendingCases,
     highRiskBets,

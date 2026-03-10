@@ -31,6 +31,7 @@ export default function PlayerDetailPage() {
     removeSegmentFromPlayer,
     resolveAlert,
     closeCase,
+    escalateAlertToCase,
   } = useRiskEngine();
   const [activeTab, setActiveTab] = useState<ActivityTab>("casino");
   const [caseNotes, setCaseNotes] = useState<Record<string, string[]>>({});
@@ -331,7 +332,7 @@ export default function PlayerDetailPage() {
               <span className="text-slate-400">Open Alerts</span>
               <span className="font-semibold">
                 {
-                  alertsForPlayer.filter((a) => a.status === "Open")
+                  alertsForPlayer.filter((a) => a.status === "open")
                     .length
                 }
               </span>
@@ -477,11 +478,13 @@ export default function PlayerDetailPage() {
                     <TD>
                       <Badge
                         variant={
-                          a.status === "Closed"
+                          a.status === "resolved" || a.status === "dismissed"
                             ? "success"
-                            : a.status === "Open"
+                            : a.status === "open"
                               ? "warning"
-                              : "outline"
+                              : a.status === "investigating"
+                                ? "outline"
+                                : "danger"
                         }
                       >
                         {a.status}
@@ -499,13 +502,22 @@ export default function PlayerDetailPage() {
                         >
                           Open
                         </button>
-                        {a.status === "Open" && (
+                        {a.status === "open" && (
                           <button
                             type="button"
                             onClick={() => resolveAlert(a.id)}
                             className="rounded-md border border-emerald-600 bg-emerald-600/10 px-2 py-0.5 text-emerald-200 hover:bg-emerald-600/20"
                           >
                             Resolve
+                          </button>
+                        )}
+                        {a.status === "investigating" && (
+                          <button
+                            type="button"
+                            onClick={() => escalateAlertToCase(a.id)}
+                            className="rounded-md border border-amber-600 bg-amber-600/10 px-2 py-0.5 text-amber-200 hover:bg-amber-600/20"
+                          >
+                            Escalate
                           </button>
                         )}
                       </div>

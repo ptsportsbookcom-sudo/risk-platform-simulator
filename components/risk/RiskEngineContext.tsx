@@ -75,6 +75,12 @@ interface RiskEngineContextValue {
   modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) => void;
   resolveAlert: (alertId: string) => void;
   closeCase: (caseId: string) => void;
+  assignAlert: (alertId: string, analyst: string) => void;
+  updateAlertStatus: (
+    alertId: string,
+    status: "open" | "investigating" | "resolved" | "dismissed" | "escalated",
+  ) => void;
+  escalateAlertToCase: (alertId: string, title?: string) => void;
   reset: () => void;
 }
 
@@ -366,7 +372,7 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             state: {
               ...internal.state,
               alerts: internal.state.alerts.map((a) =>
-                a.id === alertId ? { ...a, status: "Closed" } : a,
+                a.id === alertId ? { ...a, status: "resolved" } : a,
               ),
             },
             sequence: internal.sequence,
@@ -382,6 +388,58 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
                 c.id === caseId ? { ...c, status: "Closed" } : c,
               ),
             },
+            sequence: internal.sequence,
+          },
+        }),
+      assignAlert: (alertId: string, analyst: string) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              alerts: internal.state.alerts.map((a) =>
+                a.id === alertId ? { ...a, assignedTo: analyst } : a,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      updateAlertStatus: (alertId, status) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: {
+              ...internal.state,
+              alerts: internal.state.alerts.map((a) =>
+                a.id === alertId ? { ...a, status } : a,
+              ),
+            },
+            sequence: internal.sequence,
+          },
+        }),
+      escalateAlertToCase: (alertId: string, title?: string) =>
+        dispatch({
+          type: "COMMIT",
+          payload: {
+            state: (() => {
+              const alert = internal.state.alerts.find((a) => a.id === alertId);
+              if (!alert) return internal.state;
+              const caseId = `CASE-MANUAL-${Date.now()}`;
+              const newCase = {
+                id: caseId,
+                playerId: alert.playerId,
+                alerts: [alert.id],
+                openedAt: new Date().toISOString(),
+                status: "Open" as const,
+              };
+              return {
+                ...internal.state,
+                alerts: internal.state.alerts.map((a) =>
+                  a.id === alertId ? { ...a, status: "escalated" } : a,
+                ),
+                cases: [...internal.state.cases, newCase],
+              };
+            })(),
             sequence: internal.sequence,
           },
         }),

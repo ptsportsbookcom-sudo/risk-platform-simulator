@@ -29,6 +29,11 @@ export function DashboardClient() {
 
   const totalExposureSports = 18500;
   const totalExposureCasino = 42000;
+
+  const openAlerts = state.alerts.filter((a) => a.status === "open").length;
+  const investigatingAlerts = state.alerts.filter(
+    (a) => a.status === "investigating",
+  ).length;
   const pendingHighRiskBets = state.highRiskBets.filter(
     (b) => b.status === "pending",
   ).length;
@@ -48,12 +53,14 @@ export function DashboardClient() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
-        <Card title="Active Alerts" accent="red">
+        <Card title="Alerts" accent="red">
           <div className="flex items-end justify-between">
             <div className="text-3xl font-semibold text-red-300">
-              {formatNumber(dashboard.activeAlerts)}
+              {formatNumber(openAlerts)}
             </div>
-            <Badge variant="danger">Fraud &amp; AML</Badge>
+            <Badge variant="danger">
+              Open / Investigating: {openAlerts} / {investigatingAlerts}
+            </Badge>
           </div>
         </Card>
 
