@@ -44,7 +44,7 @@ export default function PlayerDetailPage() {
         .slice()
         .sort(
           (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
         ),
     [state.events, playerId],
   );
@@ -437,7 +437,7 @@ export default function PlayerDetailPage() {
         >
           {alertsForPlayer.length === 0 ? (
             <p className="text-xs text-slate-400">
-              No alerts for this player yet.
+              No records found.
             </p>
           ) : (
             <Table>
@@ -523,7 +523,7 @@ export default function PlayerDetailPage() {
         >
           {casesForPlayer.length === 0 ? (
             <p className="text-xs text-slate-400">
-              No cases opened for this player yet.
+              No records found.
             </p>
           ) : (
             <Table>
@@ -637,7 +637,7 @@ export default function PlayerDetailPage() {
         >
           {highRiskBetsForPlayer.length === 0 ? (
             <p className="text-xs text-slate-400">
-              No high-risk bets for this player yet.
+              No records found.
             </p>
           ) : (
             <Table>
