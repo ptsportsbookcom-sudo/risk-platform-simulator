@@ -19,6 +19,7 @@ import {
   buildEngineEventFromSimulator,
   getDashboardStats,
 } from "@/modules/risk-engine";
+import { createDefaultFraudRules } from "@/modules/fraud/fraudRules";
 import type { Rule } from "@/modules/risk-engine/ruleTypes";
 import type { Segment } from "@/modules/segmentation/segmentTypes";
 
@@ -241,10 +242,17 @@ const RiskEngineContext = createContext<RiskEngineContextValue | undefined>(
 );
 
 export function RiskEngineProvider({ children }: { children: ReactNode }) {
-  const [internal, dispatch] = useReducer(reducer, undefined, () => ({
-    state: createInitialState(),
-    sequence: 0,
-  }));
+  const [internal, dispatch] = useReducer(reducer, undefined, () => {
+    const base = createInitialState();
+    const fraudRules = createDefaultFraudRules();
+    return {
+      state: {
+        ...base,
+        rules: [...(base.rules ?? []), ...fraudRules],
+      },
+      sequence: 0,
+    };
+  });
 
   const value: RiskEngineContextValue = useMemo(
     () => ({

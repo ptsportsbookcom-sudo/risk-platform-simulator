@@ -33,6 +33,16 @@ export const DEFAULT_SEGMENTS: Segment[] = [
     name: "Multi Account Bonus Abuse",
     createdAt: Date.now(),
   },
+  {
+    id: "multi_account_cluster",
+    name: "Multi‑Account Cluster",
+    createdAt: Date.now(),
+  },
+  {
+    id: "chargeback_player",
+    name: "Chargeback Player",
+    createdAt: Date.now(),
+  },
 ];
 
 export const SEGMENT_ID_TO_NAME: Record<string, string> = DEFAULT_SEGMENTS.reduce(
