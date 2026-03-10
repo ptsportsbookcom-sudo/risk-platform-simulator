@@ -21,6 +21,7 @@ import {
 } from "@/modules/risk-engine";
 import { createDefaultFraudRules } from "@/modules/fraud/fraudRules";
 import { createDefaultAmlRules } from "@/modules/aml/amlRules";
+import { createDefaultRGRules } from "@/modules/rg/rgRules";
 import type { Rule } from "@/modules/risk-engine/ruleTypes";
 import type { Segment } from "@/modules/segmentation/segmentTypes";
 
@@ -247,10 +248,11 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
     const base = createInitialState();
     const fraudRules = createDefaultFraudRules();
     const amlRules = createDefaultAmlRules();
+    const rgRules = createDefaultRGRules();
     return {
       state: {
         ...base,
-        rules: [...(base.rules ?? []), ...fraudRules, ...amlRules],
+        rules: [...(base.rules ?? []), ...fraudRules, ...amlRules, ...rgRules],
       },
       sequence: 0,
     };

@@ -50,6 +50,10 @@ export type RuleGroup =
   | "transaction_monitoring"
   | "withdrawal_velocity"
   | "loss_chasing"
+  | "deposit_escalation"
+  | "long_sessions"
+  | "affordability"
+  | "cool_off"
   | "session_duration"
   | "deposit_frequency";
 

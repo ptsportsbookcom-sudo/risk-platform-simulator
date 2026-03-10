@@ -58,6 +58,26 @@ export const DEFAULT_SEGMENTS: Segment[] = [
     name: "CDD Escalation",
     createdAt: Date.now(),
   },
+  {
+    id: "loss_chasing",
+    name: "Loss Chasing",
+    createdAt: Date.now(),
+  },
+  {
+    id: "deposit_escalation",
+    name: "Deposit Escalation",
+    createdAt: Date.now(),
+  },
+  {
+    id: "affordability_risk",
+    name: "Affordability Risk",
+    createdAt: Date.now(),
+  },
+  {
+    id: "cool_off_required",
+    name: "Cool-Off Required",
+    createdAt: Date.now(),
+  },
 ];
 
 export const SEGMENT_ID_TO_NAME: Record<string, string> = DEFAULT_SEGMENTS.reduce(
