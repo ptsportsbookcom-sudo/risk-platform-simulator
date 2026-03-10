@@ -13,6 +13,19 @@ export interface PlayerMetrics {
   bet_count: number;
   bet_count_1h: number;
   total_stake_amount: number;
+  // Time-window metrics (counts)
+  deposit_count_5m: number;
+  deposit_count_10m: number;
+  deposit_count_1h: number;
+  withdrawal_count_10m: number;
+  withdrawal_count_1h: number;
+  withdrawal_count_24h_window: number; // alias for withdrawal_count_24h for clarity
+  bet_count_5m: number;
+  bet_count_10m: number;
+  session_count_30m: number;
+  login_count_5m: number;
+  login_count_10m: number;
+  casino_session_count_1h: number;
   // Sportsbook-specific metrics for the current bet context
   stake_amount: number;
   possible_payout: number;
@@ -23,7 +36,11 @@ export interface PlayerMetrics {
   net_exposure_event: number;
 }
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const ONE_MINUTE_MS = 60 * 1000;
+const FIVE_MINUTES_MS = 5 * ONE_MINUTE_MS;
+const TEN_MINUTES_MS = 10 * ONE_MINUTE_MS;
+const THIRTY_MINUTES_MS = 30 * ONE_MINUTE_MS;
+const ONE_HOUR_MS = 60 * ONE_MINUTE_MS;
 const TWENTY_FOUR_HOURS_MS = 24 * ONE_HOUR_MS;
 
 export function emptyPlayerMetrics(): PlayerMetrics {
@@ -36,6 +53,20 @@ export function emptyPlayerMetrics(): PlayerMetrics {
     bet_count: 0,
     bet_count_1h: 0,
     total_stake_amount: 0,
+    // windowed metrics
+    deposit_count_5m: 0,
+    deposit_count_10m: 0,
+    deposit_count_1h: 0,
+    withdrawal_count_10m: 0,
+    withdrawal_count_1h: 0,
+    withdrawal_count_24h_window: 0,
+    bet_count_5m: 0,
+    bet_count_10m: 0,
+    session_count_30m: 0,
+    login_count_5m: 0,
+    login_count_10m: 0,
+    casino_session_count_1h: 0,
+    // sportsbook context
     stake_amount: 0,
     possible_payout: 0,
     total_stake_event: 0,
@@ -54,8 +85,13 @@ export function computePlayerMetrics(
 ): PlayerMetrics {
   const metrics = emptyPlayerMetrics();
 
-  const events = allEvents.filter((e) => e.playerId === playerId);
+  // Keep only events for this player, and only last 24h to limit memory
   const nowMs = now.getTime();
+  const events = allEvents.filter(
+    (e) =>
+      e.playerId === playerId &&
+      nowMs - new Date(e.timestamp).getTime() <= TWENTY_FOUR_HOURS_MS,
+  );
 
   for (const e of events) {
     const tsMs = new Date(e.timestamp).getTime();
@@ -63,8 +99,12 @@ export function computePlayerMetrics(
 
     if (e.eventType === "deposit") {
       metrics.total_deposit_amount += e.amount ?? 0;
+
       if (ageMs <= TWENTY_FOUR_HOURS_MS) {
         metrics.deposit_count_24h += 1;
+        metrics.deposit_count_1h += ageMs <= ONE_HOUR_MS ? 1 : 0;
+        metrics.deposit_count_10m += ageMs <= TEN_MINUTES_MS ? 1 : 0;
+        metrics.deposit_count_5m += ageMs <= FIVE_MINUTES_MS ? 1 : 0;
       }
     }
 
@@ -72,6 +112,9 @@ export function computePlayerMetrics(
       metrics.total_withdrawal_amount += e.amount ?? 0;
       if (ageMs <= TWENTY_FOUR_HOURS_MS) {
         metrics.withdrawal_count_24h += 1;
+        metrics.withdrawal_count_24h_window += 1;
+        metrics.withdrawal_count_1h += ageMs <= ONE_HOUR_MS ? 1 : 0;
+        metrics.withdrawal_count_10m += ageMs <= TEN_MINUTES_MS ? 1 : 0;
       }
     }
 
@@ -86,8 +129,33 @@ export function computePlayerMetrics(
     ) {
       metrics.bet_count += 1;
       metrics.total_stake_amount += e.amount ?? 0;
+
       if (ageMs <= ONE_HOUR_MS) {
         metrics.bet_count_1h += 1;
+      }
+      if (ageMs <= TEN_MINUTES_MS) {
+        metrics.bet_count_10m += 1;
+      }
+      if (ageMs <= FIVE_MINUTES_MS) {
+        metrics.bet_count_5m += 1;
+      }
+    }
+
+    if (e.eventType === "login") {
+      if (ageMs <= TEN_MINUTES_MS) {
+        metrics.login_count_10m += 1;
+      }
+      if (ageMs <= FIVE_MINUTES_MS) {
+        metrics.login_count_5m += 1;
+      }
+    }
+
+    if (e.eventType === "casino_session") {
+      if (ageMs <= THIRTY_MINUTES_MS) {
+        metrics.session_count_30m += 1;
+      }
+      if (ageMs <= ONE_HOUR_MS) {
+        metrics.casino_session_count_1h += 1;
       }
     }
   }

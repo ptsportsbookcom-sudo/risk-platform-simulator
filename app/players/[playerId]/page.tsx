@@ -387,6 +387,39 @@ export default function PlayerDetailPage() {
                 {player.metrics?.total_stake_amount ?? 0}
               </span>
             </div>
+            <div className="mt-3 border-t border-slate-800 pt-2 text-[11px] text-slate-400">
+              Recent Activity (Time Windows)
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Deposits (10m)</span>
+              <span className="font-semibold">
+                {player.metrics?.deposit_count_10m ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Deposits (1h)</span>
+              <span className="font-semibold">
+                {player.metrics?.deposit_count_1h ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Withdrawals (24h)</span>
+              <span className="font-semibold">
+                {player.metrics?.withdrawal_count_24h ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Bets (10m)</span>
+              <span className="font-semibold">
+                {player.metrics?.bet_count_10m ?? 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Bets (1h)</span>
+              <span className="font-semibold">
+                {player.metrics?.bet_count_1h ?? 0}
+              </span>
+            </div>
           </div>
         </Card>
       </div>
