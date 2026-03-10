@@ -43,6 +43,21 @@ export const DEFAULT_SEGMENTS: Segment[] = [
     name: "Chargeback Player",
     createdAt: Date.now(),
   },
+  {
+    id: "large_depositor",
+    name: "Large Depositor",
+    createdAt: Date.now(),
+  },
+  {
+    id: "suspicious_turnover",
+    name: "Suspicious Turnover",
+    createdAt: Date.now(),
+  },
+  {
+    id: "cdd_escalation",
+    name: "CDD Escalation",
+    createdAt: Date.now(),
+  },
 ];
 
 export const SEGMENT_ID_TO_NAME: Record<string, string> = DEFAULT_SEGMENTS.reduce(

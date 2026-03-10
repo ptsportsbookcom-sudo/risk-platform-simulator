@@ -20,6 +20,7 @@ import {
   getDashboardStats,
 } from "@/modules/risk-engine";
 import { createDefaultFraudRules } from "@/modules/fraud/fraudRules";
+import { createDefaultAmlRules } from "@/modules/aml/amlRules";
 import type { Rule } from "@/modules/risk-engine/ruleTypes";
 import type { Segment } from "@/modules/segmentation/segmentTypes";
 
@@ -245,10 +246,11 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
   const [internal, dispatch] = useReducer(reducer, undefined, () => {
     const base = createInitialState();
     const fraudRules = createDefaultFraudRules();
+    const amlRules = createDefaultAmlRules();
     return {
       state: {
         ...base,
-        rules: [...(base.rules ?? []), ...fraudRules],
+        rules: [...(base.rules ?? []), ...fraudRules, ...amlRules],
       },
       sequence: 0,
     };
