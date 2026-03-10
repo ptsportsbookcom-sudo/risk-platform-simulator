@@ -4,14 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 import type { Rule } from "@/modules/risk-engine/ruleTypes";
-import {
-  DOMAIN_RULE_GROUPS,
-  type DomainKey,
-} from "@/modules/risk-domains/domainRuleGroups";
-import {
-  RULE_TAXONOMY,
-  type TaxonomyDomain,
-} from "@/modules/risk-domains/ruleTaxonomy";
+import { RULE_TAXONOMY, type RuleDomainKey } from "@/modules/rules/ruleTaxonomy";
 import { useMemo, useState } from "react";
 
 function summarizeActions(actions: Rule["actions"]) {
@@ -44,13 +37,7 @@ const EVENT_TYPES = [
   "cdd_threshold_breach",
 ] as const;
 
-const TAXONOMY_DOMAINS = Object.keys(
-  DOMAIN_RULE_GROUPS,
-) as DomainKey[];
-const DOMAIN_OPTIONS = [
-  ...TAXONOMY_DOMAINS,
-  "operations",
-] as const;
+const DOMAIN_OPTIONS = Object.keys(RULE_TAXONOMY) as RuleDomainKey[];
 
 // Base fields that conditions can target. Time-window metrics are assembled
 // from these base metric names plus a selected window (e.g. deposit_count + 10m).
@@ -135,23 +122,10 @@ export default function RulesPage() {
   const [assignSegment, setAssignSegment] = useState(false);
 
   const rules = useMemo(() => state.rules ?? [], [state.rules]);
-  const [domainFilter, setDomainFilter] = useState<
-    "all" | (typeof DOMAIN_OPTIONS)[number]
-  >("all");
-  const [groupFilter, setGroupFilter] = useState<
-    | "all"
-    | "sportsbook_exposure"
-    | "bonus_abuse"
-    | "deposit_velocity"
-    | "withdrawal_anomaly"
-    | "multi_account"
-    | "vpn_detection"
-    | "geo_mismatch"
-    | "deposit_structuring"
-    | "transaction_volume"
-    | "cdd_threshold"
-    | "affordability_threshold"
-  >("all");
+  const [domainFilter, setDomainFilter] = useState<"all" | RuleDomainKey>(
+    "all",
+  );
+  const [groupFilter, setGroupFilter] = useState<string>("all");
 
   const filteredRules = useMemo(() => {
     let base = rules;
@@ -172,20 +146,28 @@ export default function RulesPage() {
   }, [rules, domainFilter, groupFilter]);
 
   const availableGroupsForDomain = useMemo(
-    () => {
-      // Prefer RULE_TAXONOMY for structured domain→group mapping,
-      // fall back to DOMAIN_RULE_GROUPS if needed.
-      const taxDomain = domain as TaxonomyDomain;
-      if (RULE_TAXONOMY[taxDomain]) {
-        return Object.keys(RULE_TAXONOMY[taxDomain]);
-      }
-      const legacyDomain = domain as DomainKey;
-      return DOMAIN_RULE_GROUPS[legacyDomain]
-        ? DOMAIN_RULE_GROUPS[legacyDomain]
-        : [];
-    },
+    () => RULE_TAXONOMY[domain as RuleDomainKey] ?? [],
     [domain],
   );
+
+  const allGroups = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          Object.values(RULE_TAXONOMY).flatMap(
+            (groups) => groups as unknown as string[],
+          ),
+        ),
+      ),
+    [],
+  );
+
+  const availableGroupsForFilter = useMemo(() => {
+    if (domainFilter === "all") {
+      return allGroups;
+    }
+    return RULE_TAXONOMY[domainFilter] ?? [];
+  }, [allGroups, domainFilter]);
 
   function resetForm() {
     setEditingRuleId(null);
@@ -230,6 +212,18 @@ export default function RulesPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+
+    // Domain & group validation against taxonomy
+    const domainKey = domain as RuleDomainKey;
+    const allowedGroups = (RULE_TAXONOMY[domainKey] ?? []) as unknown as string[];
+    if (!domainKey || allowedGroups.length === 0) {
+      alert("Please select a valid risk domain.");
+      return;
+    }
+    if (!group || !allowedGroups.includes(group)) {
+      alert("Please select a valid rule group for the chosen domain.");
+      return;
+    }
 
     const actions: Rule["actions"] = [];
     if (createAlert) {
@@ -397,6 +391,7 @@ export default function RulesPage() {
             { id: "fraud_abuse", label: "Fraud" },
             { id: "aml_compliance", label: "AML" },
             { id: "operations", label: "Operations" },
+            { id: "responsible_gambling", label: "RG" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -420,38 +415,16 @@ export default function RulesPage() {
           <select
             value={groupFilter}
             onChange={(e) =>
-              setGroupFilter(
-                e.target.value as
-                  | "all"
-                  | "sportsbook_exposure"
-                  | "bonus_abuse"
-                  | "deposit_velocity"
-                  | "withdrawal_anomaly"
-                  | "multi_account"
-                  | "vpn_detection"
-                  | "geo_mismatch"
-                  | "deposit_structuring"
-                  | "transaction_volume"
-                  | "cdd_threshold"
-                  | "affordability_threshold",
-              )
+              setGroupFilter(e.target.value)
             }
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
           >
             <option value="all">All Groups</option>
-            <option value="sportsbook_exposure">sportsbook_exposure</option>
-            <option value="bonus_abuse">bonus_abuse</option>
-            <option value="deposit_velocity">deposit_velocity</option>
-            <option value="withdrawal_anomaly">withdrawal_anomaly</option>
-            <option value="multi_account">multi_account</option>
-            <option value="vpn_detection">vpn_detection</option>
-            <option value="geo_mismatch">geo_mismatch</option>
-            <option value="deposit_structuring">deposit_structuring</option>
-            <option value="transaction_volume">transaction_volume</option>
-            <option value="cdd_threshold">cdd_threshold</option>
-            <option value="affordability_threshold">
-              affordability_threshold
-            </option>
+            {availableGroupsForFilter.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
           </select>
         </div>
       </div>
