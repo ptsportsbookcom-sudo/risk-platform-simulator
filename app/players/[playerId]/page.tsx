@@ -8,6 +8,7 @@ import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 import { EventTimeline } from "@/components/player/EventTimeline";
 import { SecuritySignals } from "@/components/player/SecuritySignals";
+import { SEGMENT_ID_TO_NAME } from "@/modules/segmentation/segmentRegistry";
 
 type ActivityTab = "casino" | "sportsbook" | "payments" | "security";
 
@@ -176,7 +177,7 @@ export default function PlayerDetailPage() {
                 <div className="mt-1 flex flex-wrap gap-1">
                   {player.segments.map((s) => (
                     <Badge key={s} variant="outline">
-                      {s}
+                      {SEGMENT_ID_TO_NAME[s] ?? s}
                     </Badge>
                   ))}
                 </div>

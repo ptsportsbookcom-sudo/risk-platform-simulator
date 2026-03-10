@@ -3,6 +3,9 @@
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
+import {
+  SEGMENT_ID_TO_NAME,
+} from "@/modules/segmentation/segmentRegistry";
 
 function formatNumber(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -17,17 +20,14 @@ export function DashboardClient() {
   const enhancedCdd = players.filter((p) => p.cddTier === "Enhanced").length;
   const negativeBalances = players.filter((p) => p.negativeBalance).length;
 
-  const highRiskSegment = players.filter((p) =>
-    p.segments?.includes("High Risk"),
+  const highRiskCount = players.filter((p) =>
+    p.segments?.includes("high_risk"),
   ).length;
-  const vpnUsersSegment = players.filter((p) =>
-    p.segments?.includes("VPN Users"),
+  const vipCount = players.filter((p) =>
+    p.segments?.includes("vip"),
   ).length;
-  const chargebackSegment = players.filter((p) =>
-    p.segments?.includes("Chargeback Players"),
-  ).length;
-  const multiDeviceSegment = players.filter((p) =>
-    p.segments?.includes("Multi Device Users"),
+  const bonusAbuserCount = players.filter((p) =>
+    p.segments?.includes("bonus_abuser"),
   ).length;
 
   const totalExposureSports = 18500;
@@ -169,27 +169,21 @@ export function DashboardClient() {
         >
           <div className="space-y-2 text-xs text-slate-300">
             <div className="flex items-center justify-between">
-              <span>High Risk</span>
+              <span>{SEGMENT_ID_TO_NAME["high_risk"] ?? "High Risk"}</span>
               <span className="font-semibold">
-                {formatNumber(highRiskSegment)}
+                {formatNumber(highRiskCount)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span>VPN Users</span>
+              <span>{SEGMENT_ID_TO_NAME["vip"] ?? "VIP Player"}</span>
               <span className="font-semibold">
-                {formatNumber(vpnUsersSegment)}
+                {formatNumber(vipCount)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Chargeback Players</span>
+              <span>{SEGMENT_ID_TO_NAME["bonus_abuser"] ?? "Bonus Abuser"}</span>
               <span className="font-semibold">
-                {formatNumber(chargebackSegment)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Multi Device Users</span>
-              <span className="font-semibold">
-                {formatNumber(multiDeviceSegment)}
+                {formatNumber(bonusAbuserCount)}
               </span>
             </div>
           </div>

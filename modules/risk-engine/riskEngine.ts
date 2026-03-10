@@ -7,7 +7,6 @@ import {
   type AlertSeverity,
   evaluateRules,
 } from "./ruleEngine";
-import { updatePlayerSegments } from "../segmentation/segmentationEngine";
 import {
   computePlayerMetrics,
   emptyPlayerMetrics,
@@ -15,6 +14,7 @@ import {
 } from "../metrics/metricsEngine";
 import type { Rule } from "./ruleTypes";
 import { mockPlayers } from "@/data/mockPlayers";
+import { SegmentationEngine, updatePlayerSegments } from "../segmentation/segmentationEngine";
 
 export interface EngineAlert {
   id: string;
@@ -341,19 +341,26 @@ export function processEvent(
 
   const nextEvents = [logEntry, ...state.events];
 
-  const mergedSegments = Array.from(
-    new Set([
-      ...((updatedPlayer.segments as string[] | undefined) ?? []),
-      ...assignedSegmentsFromRules,
-    ]),
+  // Segmentation: apply rule-assigned segments via the SegmentationEngine.
+  const playersMap = new Map<string, PlayerRiskState>();
+  playersMap.set(event.playerId, { ...updatedPlayer });
+  const segmentationEngine = new SegmentationEngine(playersMap);
+
+  for (const seg of assignedSegmentsFromRules) {
+    segmentationEngine.assignSegment(event.playerId, seg);
+  }
+
+  const finalSegments = updatePlayerSegments(
+    {
+      ...updatedPlayer,
+      segments: segmentationEngine.getPlayerSegments(event.playerId),
+    },
+    nextEvents,
   );
 
   const playerWithSegments: PlayerRiskState = {
     ...updatedPlayer,
-    segments: updatePlayerSegments(
-      { ...updatedPlayer, segments: mergedSegments },
-      nextEvents,
-    ),
+    segments: finalSegments,
   };
 
   const nextState: RiskEngineState = {
