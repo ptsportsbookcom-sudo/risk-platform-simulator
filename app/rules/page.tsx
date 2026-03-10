@@ -52,17 +52,24 @@ const DOMAIN_OPTIONS = [
   "operations",
 ] as const;
 
+// Base fields that conditions can target. Time-window metrics are assembled
+// from these base metric names plus a selected window (e.g. deposit_count + 10m).
 const CONDITION_FIELDS = [
+  // generic fields
   "amount",
   "segments",
-  "deposit_count_24h",
-  "withdrawal_count_24h",
+  // base metrics (windowed via UI)
+  "deposit_count",
+  "withdrawal_count",
+  "bet_count",
+  "login_count",
+  "casino_session_count",
+  // aggregate totals
   "total_deposit_amount",
   "total_withdrawal_amount",
   "bonus_claim_count",
-  "bet_count",
-  "bet_count_1h",
   "total_stake_amount",
+  // sportsbook exposure metrics
   "stake_amount",
   "possible_payout",
   "total_stake_event",
@@ -72,7 +79,31 @@ const CONDITION_FIELDS = [
   "net_exposure_event",
 ] as const;
 
+const METRIC_BASE_FIELDS = [
+  "deposit_count",
+  "withdrawal_count",
+  "bet_count",
+  "login_count",
+  "casino_session_count",
+] as const;
+
+const TIME_WINDOWS = [
+  { id: "none", label: "Any time" },
+  { id: "5m", label: "5 minutes" },
+  { id: "10m", label: "10 minutes" },
+  { id: "30m", label: "30 minutes" },
+  { id: "1h", label: "1 hour" },
+  { id: "24h", label: "24 hours" },
+] as const;
+
 const OPERATORS = ["equals", "greater_than", "less_than", "contains"] as const;
+
+const OPERATOR_LABELS: Record<(typeof OPERATORS)[number], string> = {
+  equals: "==",
+  greater_than: ">",
+  less_than: "<",
+  contains: "contains",
+};
 
 export default function RulesPage() {
   const { state, addRule, toggleRule, updateRule, removeRule } = useRiskEngine();
@@ -88,7 +119,12 @@ export default function RulesPage() {
   const [group, setGroup] = useState<string>("");
 
   const [conditions, setConditions] = useState<
-    { field: (typeof CONDITION_FIELDS)[number]; operator: (typeof OPERATORS)[number]; value: string }[]
+    {
+      field: (typeof CONDITION_FIELDS)[number];
+      operator: (typeof OPERATORS)[number];
+      value: string;
+      window?: string;
+    }[]
   >([]);
 
   const [createAlert, setCreateAlert] = useState(false);
@@ -170,13 +206,13 @@ export default function RulesPage() {
   function handleAddCondition() {
     setConditions((prev) => [
       ...prev,
-      { field: "amount", operator: "greater_than", value: "0" },
+      { field: "amount", operator: "greater_than", value: "0", window: "none" },
     ]);
   }
 
   function handleConditionChange(
     index: number,
-    key: "field" | "operator" | "value",
+    key: "field" | "operator" | "value" | "window",
     value: string,
   ) {
     setConditions((prev) =>
@@ -206,6 +242,33 @@ export default function RulesPage() {
       actions.push({ type: "assignSegment", value: segmentValue.trim() });
     }
 
+    const metricBases = new Set<string>(METRIC_BASE_FIELDS as unknown as string[]);
+
+    const mapConditionToRule = (c: {
+      field: (typeof CONDITION_FIELDS)[number];
+      operator: (typeof OPERATORS)[number];
+      value: string;
+      window?: string;
+    }) => {
+      let field: string = c.field;
+      // If this is a metric base field and a window is selected, assemble
+      // the final metric name (e.g. deposit_count + 10m => deposit_count_10m).
+      if (metricBases.has(c.field) && c.window && c.window !== "none") {
+        field = `${c.field}_${c.window}`;
+      }
+
+      const numericValue =
+        field === "amount" || c.operator !== "equals"
+          ? Number(c.value)
+          : (c.value as any);
+
+      return {
+        field,
+        operator: c.operator,
+        value: numericValue,
+      };
+    };
+
     if (editingRuleId) {
       // Update existing rule
       const existing = rules.find((r) => r.id === editingRuleId);
@@ -218,14 +281,7 @@ export default function RulesPage() {
           group: (group || "manual_review") as Rule["group"],
           severity,
           eventType: eventType === "any" ? "any" : eventType,
-          conditions: conditions.map((c) => ({
-            field: c.field,
-            operator: c.operator,
-            value:
-              c.field === "amount" || c.operator !== "equals"
-                ? Number(c.value)
-                : c.value,
-          })),
+          conditions: conditions.map(mapConditionToRule),
           actions,
         });
       }
@@ -242,14 +298,7 @@ export default function RulesPage() {
         group: (group || "manual_review") as Rule["group"],
         severity,
         eventType: eventType === "any" ? "any" : eventType,
-        conditions: conditions.map((c) => ({
-          field: c.field,
-          operator: c.operator,
-          value:
-            c.field === "amount" || c.operator !== "equals"
-              ? Number(c.value)
-              : c.value,
-        })),
+        conditions: conditions.map(mapConditionToRule),
         actions,
       };
       addRule(rule);
@@ -275,11 +324,28 @@ export default function RulesPage() {
       ? rule.conditions
       : [];
     setConditions(
-      flatConditions.map((c) => ({
-        field: c.field as (typeof CONDITION_FIELDS)[number],
-        operator: c.operator as (typeof OPERATORS)[number],
-        value: String(c.value ?? ""),
-      })),
+      flatConditions.map((c) => {
+        const originalField = String(c.field);
+        let baseField = originalField as (typeof CONDITION_FIELDS)[number];
+        let window: string | undefined;
+
+        // If this is a windowed metric (e.g. deposit_count_10m), split into
+        // base metric + window suffix for the UI.
+        const metricMatch = originalField.match(
+          /^(deposit_count|withdrawal_count|bet_count|login_count|casino_session_count)_(5m|10m|30m|1h|24h)$/,
+        );
+        if (metricMatch) {
+          baseField = metricMatch[1] as (typeof CONDITION_FIELDS)[number];
+          window = metricMatch[2];
+        }
+
+        return {
+          field: baseField,
+          operator: c.operator as (typeof OPERATORS)[number],
+          value: String(c.value ?? ""),
+          window: window ?? "none",
+        };
+      }),
     );
 
     const alert = rule.actions.find((a) => a.type === "createAlert");
@@ -635,52 +701,80 @@ export default function RulesPage() {
                     type.
                   </p>
                 )}
-                {conditions.map((c, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <select
-                      value={c.field}
-                      onChange={(e) =>
-                        handleConditionChange(
-                          idx,
-                          "field",
-                          e.target.value as (typeof CONDITION_FIELDS)[number],
-                        )
-                      }
-                      className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
-                    >
-                      {CONDITION_FIELDS.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={c.operator}
-                      onChange={(e) =>
-                        handleConditionChange(
-                          idx,
-                          "operator",
-                          e.target.value as (typeof OPERATORS)[number],
-                        )
-                      }
-                      className="w-28 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
-                    >
-                      {OPERATORS.map((o) => (
-                        <option key={o} value={o}>
-                          {o}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      value={c.value}
-                      onChange={(e) =>
-                        handleConditionChange(idx, "value", e.target.value)
-                      }
-                      className="flex-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
-                      placeholder="Value"
-                    />
-                  </div>
-                ))}
+                {conditions.map((c, idx) => {
+                  const isMetricField = (
+                    METRIC_BASE_FIELDS as readonly string[]
+                  ).includes(c.field);
+
+                  return (
+                    <div key={idx} className="flex flex-wrap gap-2">
+                      {/* Metric / field selector */}
+                      <select
+                        value={c.field}
+                        onChange={(e) =>
+                          handleConditionChange(
+                            idx,
+                            "field",
+                            e.target.value as (typeof CONDITION_FIELDS)[number],
+                          )
+                        }
+                        className="w-32 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                      >
+                        {CONDITION_FIELDS.map((f) => (
+                          <option key={f} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Operator selector, displayed as symbolic operators */}
+                      <select
+                        value={c.operator}
+                        onChange={(e) =>
+                          handleConditionChange(
+                            idx,
+                            "operator",
+                            e.target.value as (typeof OPERATORS)[number],
+                          )
+                        }
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                      >
+                        {OPERATORS.map((o) => (
+                          <option key={o} value={o}>
+                            {OPERATOR_LABELS[o]}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Numeric value */}
+                      <input
+                        value={c.value}
+                        onChange={(e) =>
+                          handleConditionChange(idx, "value", e.target.value)
+                        }
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                        placeholder="Value"
+                      />
+
+                      {/* Time window selector for metric-based fields */}
+                      {isMetricField && (
+                        <select
+                          value={c.window ?? "none"}
+                          onChange={(e) =>
+                            handleConditionChange(idx, "window", e.target.value)
+                          }
+                          className="w-28 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                        >
+                          {TIME_WINDOWS.map((w) => (
+                            <option key={w.id} value={w.id}>
+                              {w.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/80 p-2">
