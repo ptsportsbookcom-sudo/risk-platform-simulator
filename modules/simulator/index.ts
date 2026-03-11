@@ -3,6 +3,7 @@
 
 import type { Event as UiEvent } from "@/types/event";
 import type { RiskEngineState, PlayerRiskState, SimulatorEventInput } from "../risk-engine";
+import { updatePlayer } from "./updatePlayer";
 
 export function createSimulatedEvent(
   category: UiEvent["category"],
@@ -37,11 +38,10 @@ export function createDepositEvent(
 
   const extra = player as WithExtra<{ totalDeposits?: number }>;
 
-  const updated = {
-    ...player,
+  const updated = updatePlayer(player, {
     balance: player.balance + amount,
     totalDeposits: (extra.totalDeposits ?? 0) + amount,
-  };
+  } as Record<string, unknown>);
 
   const nextState: RiskEngineState = {
     ...state,
@@ -77,11 +77,10 @@ export function createWithdrawalEvent(
 
   const extra = player as WithExtra<{ totalWithdrawals?: number }>;
 
-  const updated = {
-    ...player,
+  const updated = updatePlayer(player, {
     balance: player.balance - amount,
     totalWithdrawals: (extra.totalWithdrawals ?? 0) + amount,
-  };
+  } as Record<string, unknown>);
 
   const nextState: RiskEngineState = {
     ...state,
@@ -128,12 +127,11 @@ export function createBetEvent(
 
   const netWin = outcome === "win" ? stake * (odds - 1) : -stake;
 
-  const updated = {
-    ...player,
+  const updated = updatePlayer(player, {
     balance: player.balance + netWin,
     totalBets: (extra.totalBets ?? 0) + 1,
     totalStake: (extra.totalStake ?? 0) + stake,
-  };
+  } as Record<string, unknown>);
 
   const nextState: RiskEngineState = {
     ...state,
@@ -169,11 +167,10 @@ export function createChargebackEvent(
 
   const extra = player as WithExtra<{ chargebackAmount?: number }>;
 
-  const updated = {
-    ...player,
+  const updated = updatePlayer(player, {
     balance: player.balance - amount,
     chargebackAmount: (extra.chargebackAmount ?? 0) + amount,
-  };
+  } as Record<string, unknown>);
 
   const nextState: RiskEngineState = {
     ...state,
@@ -214,11 +211,10 @@ export function createFraudAdjustmentEvent(
 
   const extra = player as WithExtra<{ fraudAmount?: number }>;
 
-  const updated = {
-    ...player,
+  const updated = updatePlayer(player, {
     balance: player.balance + amount,
     fraudAmount: (extra.fraudAmount ?? 0) + amount,
-  };
+  } as Record<string, unknown>);
 
   const nextState: RiskEngineState = {
     ...state,
@@ -262,11 +258,10 @@ export function createSessionEvent(
     totalSessionTime?: number;
   }>;
 
-  const updated = {
-    ...player,
+  const updated = updatePlayer(player, {
     sessionCount: (extra.sessionCount ?? 0) + 1,
     totalSessionTime: (extra.totalSessionTime ?? 0) + durationMinutes,
-  };
+  } as Record<string, unknown>);
 
   const nextState: RiskEngineState = {
     ...state,
