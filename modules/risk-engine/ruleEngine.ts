@@ -67,16 +67,57 @@ function conditionMatches(
 
   let left: unknown;
 
-  if (field === "amount") {
+  // Event-scoped fields
+  if (field === "amount" || field === "event.amount") {
     left = event.amount ?? 0;
+  } else if (field === "event.type" || field === "event.eventType") {
+    left = event.eventType;
+  } else if (field === "event.currency") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "currency" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.country") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "country" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.deviceId") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "deviceId" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.ip" || field === "event.ipAddress") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "ipAddress" as keyof typeof event.metadata
+    ];
   } else if (field === "segments") {
+    // Backwards-compatible alias for player segments
     left = player.segments ?? [];
   } else if (field === "eventType") {
+    // Backwards-compatible alias for event.eventType
     left = event.eventType;
+  } else if (field.startsWith("player.")) {
+    // Player-scoped synthetic fields
+    switch (field) {
+      case "player.depositCount24h":
+        left = player.metrics?.["deposit_count_24h" as keyof typeof player.metrics];
+        break;
+      case "player.withdrawalCount24h":
+        left =
+          player.metrics?.["withdrawal_count_24h" as keyof typeof player.metrics];
+        break;
+      case "player.betCount24h":
+        left = player.metrics?.["bet_count_24h" as keyof typeof player.metrics];
+        break;
+      case "player.deviceCount":
+        left = (player.deviceIds ?? []).length;
+        break;
+      default:
+        left = undefined;
+    }
   } else if (player.metrics && field in player.metrics) {
+    // Metrics (including windowed metrics)
     left = player.metrics[field as keyof typeof player.metrics];
   } else {
-    // Fallback: try metadata
+    // Fallback: try metadata directly by key
     left = (event.metadata ?? ({} as Record<string, unknown>))[
       field as keyof typeof event.metadata
     ];
@@ -84,6 +125,10 @@ function conditionMatches(
 
   if (operator === "equals") {
     return left === value;
+  }
+
+  if (operator === "not_equals") {
+    return left !== value;
   }
 
   if (operator === "greater_than") {
@@ -98,12 +143,37 @@ function conditionMatches(
     return lv < rv;
   }
 
+  if (operator === "greater_or_equals") {
+    const lv = Number(left ?? 0);
+    const rv = Number(value);
+    return lv >= rv;
+  }
+
+  if (operator === "less_or_equals") {
+    const lv = Number(left ?? 0);
+    const rv = Number(value);
+    return lv <= rv;
+  }
+
   if (operator === "contains") {
     if (Array.isArray(left)) {
       return left.includes(value as never);
     }
     if (typeof left === "string" && typeof value === "string") {
       return left.includes(value);
+    }
+  }
+
+  if (operator === "in") {
+    if (Array.isArray(value)) {
+      return value.includes(left as never);
+    }
+    if (typeof value === "string") {
+      const parts = value
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
+      return parts.includes(String(left));
     }
   }
 

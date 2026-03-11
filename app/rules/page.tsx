@@ -64,7 +64,19 @@ const DOMAIN_OPTIONS = Object.keys(RULE_TAXONOMY) as RuleDomainKey[];
 // Base fields that conditions can target. Time-window metrics are assembled
 // from these base metric names plus a selected window (e.g. deposit_count + 10m).
 const CONDITION_FIELDS = [
-  // generic fields
+  // event fields
+  "event.amount",
+  "event.currency",
+  "event.type",
+  "event.country",
+  "event.deviceId",
+  "event.ip",
+  // player fields
+  "player.depositCount24h",
+  "player.withdrawalCount24h",
+  "player.betCount24h",
+  "player.deviceCount",
+  // generic fields (backwards compatible)
   "amount",
   "segments",
   // base metrics (windowed via UI)
@@ -105,13 +117,26 @@ const TIME_WINDOWS = [
   { id: "24h", label: "24 hours" },
 ] as const;
 
-const OPERATORS = ["equals", "greater_than", "less_than", "contains"] as const;
+const OPERATORS = [
+  "equals",
+  "not_equals",
+  "greater_than",
+  "less_than",
+  "greater_or_equals",
+  "less_or_equals",
+  "contains",
+  "in",
+] as const;
 
 const OPERATOR_LABELS: Record<(typeof OPERATORS)[number], string> = {
   equals: "==",
+  not_equals: "!=",
   greater_than: ">",
   less_than: "<",
+  greater_or_equals: ">=",
+  less_or_equals: "<=",
   contains: "contains",
+  in: "in",
 };
 
 export default function RulesPage() {
@@ -331,8 +356,23 @@ export default function RulesPage() {
         field = `${c.field}_${c.window}`;
       }
 
+      // Map synthetic player.* fields to underlying metric names
+      if (c.field === "player.depositCount24h") {
+        field = "deposit_count_24h";
+      } else if (c.field === "player.withdrawalCount24h") {
+        field = "withdrawal_count_24h";
+      } else if (c.field === "player.betCount24h") {
+        field = "bet_count_24h";
+      } else if (c.field === "player.deviceCount") {
+        field = "player.deviceCount";
+      }
+
+      const numericOps = new Set<
+        (typeof OPERATORS)[number]
+      >(["greater_than", "less_than", "greater_or_equals", "less_or_equals"]);
+
       const numericValue =
-        field === "amount" || c.operator !== "equals"
+        field === "amount" || numericOps.has(c.operator)
           ? Number(c.value)
           : (c.value as any);
 

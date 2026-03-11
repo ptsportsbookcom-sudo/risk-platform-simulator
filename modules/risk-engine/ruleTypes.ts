@@ -59,9 +59,13 @@ export type RuleGroup =
 
 export type ConditionOperator =
   | "equals"
+  | "not_equals"
   | "greater_than"
   | "less_than"
-  | "contains";
+  | "greater_or_equals"
+  | "less_or_equals"
+  | "contains"
+  | "in";
 
 export interface RuleCondition {
   field: string;
