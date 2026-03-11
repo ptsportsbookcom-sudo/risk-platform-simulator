@@ -81,7 +81,16 @@ export type RuleSeverity = "critical" | "high" | "medium" | "low";
 export type RuleAction =
   | { type: "createAlert" }
   | { type: "createCase" }
-  | { type: "assignSegment"; value: string };
+  | { type: "assignSegment"; value: string }
+  | { type: "blockBet" }
+  | { type: "limitStake"; value?: number }
+  | { type: "sendToHighRiskReview" }
+  | { type: "blockDeposit" }
+  | { type: "blockWithdrawal" }
+  | { type: "blockGameplay" }
+  | { type: "closeAccount" }
+  | { type: "changeCategory"; value?: string }
+  | { type: "moveCddTier"; value?: string };
 
 export interface Rule {
   id: string;

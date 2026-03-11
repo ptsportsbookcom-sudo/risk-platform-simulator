@@ -49,6 +49,8 @@ export type AlertSeverity =
   | "Critical"
   | "Sportsbook";
 
+import type { RuleAction } from "./ruleTypes";
+
 export interface RuleEvaluation {
   ruleId: string;
   description: string;
@@ -56,6 +58,7 @@ export interface RuleEvaluation {
   alertSeverity?: AlertSeverity;
   createCase?: boolean;
   assignSegments?: string[];
+  actions?: RuleAction[];
 }
 
 const DEPOSIT_VELOCITY_WINDOW_MINUTES = 10;
@@ -286,8 +289,13 @@ export function evaluateRules(
     let createAlert = false;
     let createCase = false;
     const assignSegments: string[] = [];
+    const ruleActions: RuleAction[] = [];
 
     for (const action of rule.actions ?? []) {
+      // Collect all actions for the evaluation result
+      ruleActions.push(action);
+
+      // Maintain backwards compatibility: extract legacy fields
       if (action.type === "createAlert") {
         createAlert = true;
       } else if (action.type === "createCase") {
@@ -297,7 +305,8 @@ export function evaluateRules(
       }
     }
 
-    if (createAlert || createCase || assignSegments.length > 0) {
+    // Include rule in results if it has any actions or legacy behavior
+    if (ruleActions.length > 0 || createAlert || createCase || assignSegments.length > 0) {
       results.push({
         ruleId: rule.id,
         description: rule.description ?? rule.name,
@@ -307,6 +316,7 @@ export function evaluateRules(
           : undefined,
         createCase,
         assignSegments: assignSegments.length ? assignSegments : undefined,
+        actions: ruleActions.length > 0 ? ruleActions : undefined,
       });
     }
   }

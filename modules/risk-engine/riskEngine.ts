@@ -17,6 +17,7 @@ import { mockPlayers } from "@/data/mockPlayers";
 import { SegmentationEngine, updatePlayerSegments } from "../segmentation/segmentationEngine";
 import { DEFAULT_SEGMENTS } from "../segmentation/segmentRegistry";
 import type { Segment } from "../segmentation/segmentTypes";
+import { executeActions } from "./actionExecutor";
 
 export interface EngineAlert {
   id: string;
@@ -88,6 +89,12 @@ export interface PlayerRiskState {
   canWithdraw: boolean;
   isFrozen: boolean;
   accountStatus: "Active" | "Blocked" | "Frozen" | "Closed";
+  blockedActions?: {
+    deposit?: boolean;
+    withdrawal?: boolean;
+    gameplay?: boolean;
+    betting?: boolean;
+  };
 }
 
 export interface RiskEngineState {
@@ -110,11 +117,14 @@ export interface AuditEntry {
   timestamp: string;
 }
 
+import type { RuleAction } from "./ruleTypes";
+
 export interface ProcessEventResult {
   state: RiskEngineState;
   triggeredRules: RuleEvaluation[];
   newAlerts: EngineAlert[];
   newCases: EngineCase[];
+  actions: RuleAction[];
 }
 
 export type SimulatorEventInput = {
@@ -153,6 +163,7 @@ export function createInitialState(): RiskEngineState {
       accountStatus: "Active",
       segments: [],
       metrics: emptyPlayerMetrics(),
+      blockedActions: {},
     };
   }
 
@@ -204,6 +215,7 @@ export function processEvent(
       isFrozen: false,
       accountStatus: "Active",
       segments: [],
+      blockedActions: {},
     };
 
   const player: PlayerRiskState =
@@ -274,20 +286,48 @@ export function processEvent(
   const newBets: EngineBet[] = [];
   const assignedSegmentsFromRules: string[] = [];
   const newHighRiskBets: HighRiskBet[] = [];
+  const allActions: RuleAction[] = [];
+  let cumulativePlayerUpdates: Partial<PlayerRiskState> = {};
 
+  // Process rules: maintain backwards compatibility while supporting new actions
   for (const rule of ruleResults) {
+    // Collect all actions from this rule
+    const ruleActions = rule.actions ?? [];
+
+    // Maintain backwards compatibility: handle legacy createAlert/createCase/assignSegments
     if (rule.createAlert && rule.alertSeverity) {
-      const alert: EngineAlert = {
-        id: nextId("ALERT"),
-        playerId: event.playerId,
-        ruleTriggered: rule.ruleId,
-        severity: rule.alertSeverity,
-        timestamp: event.timestamp,
-        createdAt: event.timestamp,
-        status: "open",
-        assignedTo: null,
-      };
-      newAlerts.push(alert);
+      // If rule has actions, use ActionExecutor; otherwise use legacy path
+      if (ruleActions.length > 0) {
+        const actionResult = executeActions(
+          ruleActions,
+          event.playerId,
+          rule.ruleId,
+          event.timestamp,
+          rule.alertSeverity,
+          state,
+          nextId,
+        );
+        newAlerts.push(...actionResult.alerts);
+        newCases.push(...actionResult.cases);
+        allActions.push(...actionResult.recordedActions);
+        cumulativePlayerUpdates = {
+          ...cumulativePlayerUpdates,
+          ...actionResult.playerUpdates,
+        };
+      } else {
+        // Legacy path: create alert directly
+        const alert: EngineAlert = {
+          id: nextId("ALERT"),
+          playerId: event.playerId,
+          ruleTriggered: rule.ruleId,
+          severity: rule.alertSeverity,
+          timestamp: event.timestamp,
+          createdAt: event.timestamp,
+          status: "open",
+          assignedTo: null,
+        };
+        newAlerts.push(alert);
+      }
 
       // If this is a sportsbook large bet rule, register a high-risk bet.
       if (rule.ruleId === "R5_LARGE_BET") {
@@ -300,9 +340,28 @@ export function processEvent(
         };
         newBets.push(bet);
       }
+    } else if (ruleActions.length > 0) {
+      // Rule has actions but no legacy createAlert - execute actions directly
+      const actionResult = executeActions(
+        ruleActions,
+        event.playerId,
+        rule.ruleId,
+        event.timestamp,
+        rule.alertSeverity ?? "Medium",
+        state,
+        nextId,
+      );
+      newAlerts.push(...actionResult.alerts);
+      newCases.push(...actionResult.cases);
+      allActions.push(...actionResult.recordedActions);
+      cumulativePlayerUpdates = {
+        ...cumulativePlayerUpdates,
+        ...actionResult.playerUpdates,
+      };
     }
 
-    if (rule.createCase) {
+    // Legacy createCase handling (if not already handled by actions)
+    if (rule.createCase && !ruleActions.some((a) => a.type === "createCase")) {
       const caseRecord: EngineCase = {
         id: nextId("CASE"),
         playerId: event.playerId,
@@ -313,8 +372,16 @@ export function processEvent(
       newCases.push(caseRecord);
     }
 
+    // Legacy assignSegments handling (if not already handled by actions)
     if (rule.assignSegments && rule.assignSegments.length > 0) {
       assignedSegmentsFromRules.push(...rule.assignSegments);
+    }
+
+    // Extract assignSegment actions
+    for (const action of ruleActions) {
+      if (action.type === "assignSegment") {
+        assignedSegmentsFromRules.push(action.value);
+      }
     }
   }
 
@@ -396,10 +463,21 @@ export function processEvent(
     nextEvents,
   );
 
-  const playerWithSegments: PlayerRiskState = {
+  // Apply action-based player updates
+  const playerWithActions: PlayerRiskState = {
     ...updatedPlayer,
     segments: finalSegments,
+    ...cumulativePlayerUpdates,
+    // Merge blockedActions if they exist
+    blockedActions: cumulativePlayerUpdates.blockedActions
+      ? {
+          ...(updatedPlayer.blockedActions ?? {}),
+          ...cumulativePlayerUpdates.blockedActions,
+        }
+      : updatedPlayer.blockedActions,
   };
+
+  const playerWithSegments: PlayerRiskState = playerWithActions;
 
   const nextState: RiskEngineState = {
     players: {
@@ -421,6 +499,7 @@ export function processEvent(
     triggeredRules: ruleResults,
     newAlerts,
     newCases,
+    actions: allActions,
   };
 }
 
