@@ -224,22 +224,8 @@ export default function RulesPage() {
     setDomain("operations");
     setGroup("");
     setConditions([]);
-    setCreateAlert(false);
     setSeverity("medium");
-    setCreateCase(false);
-    setSegmentValue("");
-    setAssignSegment(false);
-    setBlockWithdrawal(false);
-    setBlockDeposit(false);
-    setBlockBet(false);
-    setBlockBonus(false);
-    setBlockGameplay(false);
-    setLimitStakeEnabled(false);
-    setLimitStakeValue("");
-    setRequireKyc(false);
-    setMoveCddTierValue("");
-    setFreezeAccount(false);
-    setCloseAccount(false);
+    setActions([{ type: "create_alert", params: {} }]);
   }
 
   function handleAddCondition() {
@@ -872,8 +858,10 @@ export default function RulesPage() {
                           placeholder="Amount"
                           className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
                           value={
-                            (action.params as Record<string, unknown>).amount ??
-                            ""
+                            String(
+                              (action.params as Record<string, unknown>).amount ??
+                                "",
+                            )
                           }
                           onChange={(e) => {
                             const value = e.target.value;
@@ -896,7 +884,10 @@ export default function RulesPage() {
                           placeholder="Tier"
                           className="w-28 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
                           value={
-                            (action.params as Record<string, unknown>).tier ?? ""
+                            String(
+                              (action.params as Record<string, unknown>).tier ??
+                                "",
+                            )
                           }
                           onChange={(e) => {
                             const value = e.target.value;

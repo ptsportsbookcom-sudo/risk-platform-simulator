@@ -294,6 +294,7 @@ export function processEvent(
   for (const rule of ruleResults) {
     // Collect all actions from this rule
     const ruleActions = rule.actions ?? [];
+    const ruleAlerts: EngineAlert[] = [];
 
     // Maintain backwards compatibility: handle legacy createAlert/createCase/assignSegments
     if (rule.createAlert && rule.alertSeverity) {
@@ -309,6 +310,7 @@ export function processEvent(
           nextId,
         );
         newAlerts.push(...actionResult.alerts);
+        ruleAlerts.push(...actionResult.alerts);
         newCases.push(...actionResult.cases);
         allActions.push(...actionResult.recordedActions);
         cumulativePlayerUpdates = {
@@ -328,6 +330,7 @@ export function processEvent(
           assignedTo: null,
         };
         newAlerts.push(alert);
+        ruleAlerts.push(alert);
       }
 
       // If this is a sportsbook large bet rule, register a high-risk bet.
@@ -353,6 +356,7 @@ export function processEvent(
         nextId,
       );
       newAlerts.push(...actionResult.alerts);
+      ruleAlerts.push(...actionResult.alerts);
       newCases.push(...actionResult.cases);
       allActions.push(...actionResult.recordedActions);
       cumulativePlayerUpdates = {
@@ -363,14 +367,10 @@ export function processEvent(
 
     // Legacy createCase handling (if not already handled by actions)
     if (rule.createCase && !ruleActions.some((a) => a.type === "createCase")) {
-      // Case should only reference alerts created by this rule, not all alerts so far.
-      const alertsForRule = newAlerts.filter(
-        (a) => a.ruleTriggered === rule.ruleId,
-      );
       const caseRecord: EngineCase = {
         id: nextId("CASE"),
         playerId: event.playerId,
-        alerts: alertsForRule.map((a) => a.id),
+        alerts: ruleAlerts.map((a) => a.id),
         openedAt: event.timestamp,
         status: "Open",
       };
