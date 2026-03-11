@@ -2,6 +2,11 @@
 // Responsible for translating UI actions into engine signals in a real system.
 
 import type { Event } from "@/types/event";
+import type {
+  RiskEngineState,
+  PlayerRiskState,
+  SimulatorEventInput,
+} from "../risk-engine";
 
 export function createSimulatedEvent(
   category: Event["category"],
@@ -17,3 +22,274 @@ export function createSimulatedEvent(
   };
 }
 
+type WithExtra<T> = PlayerRiskState & T;
+
+// 1. Deposit Events
+export function createDepositEvent(
+  state: RiskEngineState,
+  playerId: string,
+  amount: number,
+  currency: string,
+): { nextState: RiskEngineState; event: SimulatorEventInput } {
+  const player = state.players[playerId];
+  if (!player) {
+    return {
+      nextState: state,
+      event: { playerId, eventType: "deposit", amount, metadata: { currency } },
+    };
+  }
+
+  const extra = player as WithExtra<{ totalDeposits?: number }>;
+
+  const updated: PlayerRiskState = {
+    ...player,
+    balance: player.balance + amount,
+    ...({
+      totalDeposits: (extra.totalDeposits ?? 0) + amount,
+    } as unknown as PlayerRiskState),
+  };
+
+  const nextState: RiskEngineState = {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: updated,
+    },
+  };
+
+  const event: SimulatorEventInput = {
+    playerId,
+    eventType: "deposit",
+    amount,
+    metadata: { currency },
+  };
+
+  return { nextState, event };
+}
+
+// 2. Withdrawal Events
+export function createWithdrawalEvent(
+  state: RiskEngineState,
+  playerId: string,
+  amount: number,
+): { nextState: RiskEngineState; event: SimulatorEventInput } {
+  const player = state.players[playerId];
+  if (!player) {
+    return {
+      nextState: state,
+      event: { playerId, eventType: "withdraw", amount, metadata: {} },
+    };
+  }
+
+  const extra = player as WithExtra<{ totalWithdrawals?: number }>;
+
+  const updated: PlayerRiskState = {
+    ...player,
+    balance: player.balance - amount,
+    ...({
+      totalWithdrawals: (extra.totalWithdrawals ?? 0) + amount,
+    } as unknown as PlayerRiskState),
+  };
+
+  const nextState: RiskEngineState = {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: updated,
+    },
+  };
+
+  const event: SimulatorEventInput = {
+    playerId,
+    eventType: "withdraw",
+    amount,
+    metadata: {},
+  };
+
+  return { nextState, event };
+}
+
+// 3. Bet Events
+export type BetOutcome = "win" | "loss";
+
+export function createBetEvent(
+  state: RiskEngineState,
+  playerId: string,
+  stake: number,
+  odds: number,
+  outcome: BetOutcome,
+): { nextState: RiskEngineState; event: SimulatorEventInput } {
+  const player = state.players[playerId];
+  const extra = player as WithExtra<{ totalBets?: number; totalStake?: number }>;
+
+  const netWin = outcome === "win" ? stake * (odds - 1) : -stake;
+
+  const updated: PlayerRiskState | undefined = player
+    ? ({
+        ...player,
+        balance: player.balance + netWin,
+        ...({
+          totalBets: (extra.totalBets ?? 0) + 1,
+          totalStake: (extra.totalStake ?? 0) + stake,
+        } as unknown as PlayerRiskState),
+      } as PlayerRiskState)
+    : undefined;
+
+  const nextState: RiskEngineState = updated
+    ? {
+        ...state,
+        players: {
+          ...state.players,
+          [playerId]: updated,
+        },
+      }
+    : state;
+
+  const event: SimulatorEventInput = {
+    playerId,
+    eventType: "place_bet",
+    amount: stake,
+    metadata: { odds, outcome },
+  };
+
+  return { nextState, event };
+}
+
+// 4. Chargeback Events
+export function createChargebackEvent(
+  state: RiskEngineState,
+  playerId: string,
+  amount: number,
+): { nextState: RiskEngineState; event: SimulatorEventInput } {
+  const player = state.players[playerId];
+  if (!player) {
+    return {
+      nextState: state,
+      event: { playerId, eventType: "chargeback", amount, metadata: {} },
+    };
+  }
+
+  const extra = player as WithExtra<{ chargebackAmount?: number }>;
+
+  const updated: PlayerRiskState = {
+    ...player,
+    balance: player.balance - amount,
+    ...({
+      chargebackAmount: (extra.chargebackAmount ?? 0) + amount,
+    } as unknown as PlayerRiskState),
+  };
+
+  const nextState: RiskEngineState = {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: updated,
+    },
+  };
+
+  const event: SimulatorEventInput = {
+    playerId,
+    eventType: "chargeback",
+    amount,
+    metadata: {},
+  };
+
+  return { nextState, event };
+}
+
+// 5. Fraud Adjustment
+export function createFraudAdjustmentEvent(
+  state: RiskEngineState,
+  playerId: string,
+  amount: number,
+): { nextState: RiskEngineState; event: SimulatorEventInput } {
+  const player = state.players[playerId];
+  if (!player) {
+    return {
+      nextState: state,
+      event: {
+        playerId,
+        eventType: "chargeback",
+        amount,
+        metadata: { type: "fraud_adjustment" },
+      },
+    };
+  }
+
+  const extra = player as WithExtra<{ fraudAmount?: number }>;
+
+  const updated: PlayerRiskState = {
+    ...player,
+    balance: player.balance + amount,
+    ...({
+      fraudAmount: (extra.fraudAmount ?? 0) + amount,
+    } as unknown as PlayerRiskState),
+  };
+
+  const nextState: RiskEngineState = {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: updated,
+    },
+  };
+
+  const event: SimulatorEventInput = {
+    playerId,
+    eventType: "chargeback",
+    amount,
+    metadata: { type: "fraud_adjustment" },
+  };
+
+  return { nextState, event };
+}
+
+// 6. Session Activity
+export function createSessionEvent(
+  state: RiskEngineState,
+  playerId: string,
+  durationMinutes: number,
+): { nextState: RiskEngineState; event: SimulatorEventInput } {
+  const player = state.players[playerId];
+  if (!player) {
+    return {
+      nextState: state,
+      event: {
+        playerId,
+        eventType: "casino_session",
+        amount: durationMinutes,
+        metadata: {},
+      },
+    };
+  }
+
+  const extra = player as WithExtra<{
+    sessionCount?: number;
+    totalSessionTime?: number;
+  }>;
+
+  const updated: PlayerRiskState = {
+    ...player,
+    ...({
+      sessionCount: (extra.sessionCount ?? 0) + 1,
+      totalSessionTime: (extra.totalSessionTime ?? 0) + durationMinutes,
+    } as unknown as PlayerRiskState),
+  };
+
+  const nextState: RiskEngineState = {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: updated,
+    },
+  };
+
+  const event: SimulatorEventInput = {
+    playerId,
+    eventType: "casino_session",
+    amount: durationMinutes,
+    metadata: {},
+  };
+
+  return { nextState, event };
+}
