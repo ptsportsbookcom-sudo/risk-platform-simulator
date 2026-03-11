@@ -16,6 +16,28 @@ function summarizeActions(actions: Rule["actions"]) {
       parts.push("Case");
     } else if (a.type === "assignSegment") {
       parts.push(`Segment: ${a.value}`);
+    } else if (a.type === "blockWithdrawal") {
+      parts.push("Block Withdrawals");
+    } else if (a.type === "blockDeposit") {
+      parts.push("Block Deposits");
+    } else if (a.type === "limitStake") {
+      parts.push(
+        a.value != null ? `Limit Stake ≤ ${a.value}` : "Limit Stake",
+      );
+    } else if (a.type === "blockBet") {
+      parts.push("Block Bets");
+    } else if (a.type === "blockBonus") {
+      parts.push("Block Bonuses");
+    } else if (a.type === "blockGameplay") {
+      parts.push("Block Gameplay");
+    } else if (a.type === "requireKyc") {
+      parts.push("Require KYC");
+    } else if (a.type === "moveCddTier") {
+      parts.push(`CDD Tier → ${a.value ?? "updated"}`);
+    } else if (a.type === "freezeAccount") {
+      parts.push("Freeze Account");
+    } else if (a.type === "closeAccount") {
+      parts.push("Close Account");
     }
   }
   return parts.join(", ");
@@ -120,6 +142,17 @@ export default function RulesPage() {
   const [createCase, setCreateCase] = useState(false);
   const [segmentValue, setSegmentValue] = useState("");
   const [assignSegment, setAssignSegment] = useState(false);
+  const [blockWithdrawal, setBlockWithdrawal] = useState(false);
+  const [blockDeposit, setBlockDeposit] = useState(false);
+  const [blockBet, setBlockBet] = useState(false);
+  const [blockBonus, setBlockBonus] = useState(false);
+  const [blockGameplay, setBlockGameplay] = useState(false);
+  const [limitStakeEnabled, setLimitStakeEnabled] = useState(false);
+  const [limitStakeValue, setLimitStakeValue] = useState("");
+  const [requireKyc, setRequireKyc] = useState(false);
+  const [moveCddTierValue, setMoveCddTierValue] = useState("");
+  const [freezeAccount, setFreezeAccount] = useState(false);
+  const [closeAccount, setCloseAccount] = useState(false);
 
   const rules = useMemo(() => state.rules ?? [], [state.rules]);
   const [domainFilter, setDomainFilter] = useState<"all" | RuleDomainKey>(
@@ -183,6 +216,17 @@ export default function RulesPage() {
     setCreateCase(false);
     setSegmentValue("");
     setAssignSegment(false);
+    setBlockWithdrawal(false);
+    setBlockDeposit(false);
+    setBlockBet(false);
+    setBlockBonus(false);
+    setBlockGameplay(false);
+    setLimitStakeEnabled(false);
+    setLimitStakeValue("");
+    setRequireKyc(false);
+    setMoveCddTierValue("");
+    setFreezeAccount(false);
+    setCloseAccount(false);
   }
 
   function handleAddCondition() {
@@ -234,6 +278,42 @@ export default function RulesPage() {
     }
     if (assignSegment && segmentValue.trim()) {
       actions.push({ type: "assignSegment", value: segmentValue.trim() });
+    }
+    if (blockWithdrawal) {
+      actions.push({ type: "blockWithdrawal" });
+    }
+    if (blockDeposit) {
+      actions.push({ type: "blockDeposit" });
+    }
+    if (blockBet) {
+      actions.push({ type: "blockBet" });
+    }
+    if (blockBonus) {
+      actions.push({ type: "blockBonus" });
+    }
+    if (blockGameplay) {
+      actions.push({ type: "blockGameplay" });
+    }
+    if (limitStakeEnabled && limitStakeValue.trim()) {
+      actions.push({
+        type: "limitStake",
+        value: Number(limitStakeValue),
+      });
+    }
+    if (requireKyc) {
+      actions.push({ type: "requireKyc" });
+    }
+    if (moveCddTierValue.trim()) {
+      actions.push({
+        type: "moveCddTier",
+        value: moveCddTierValue.trim(),
+      });
+    }
+    if (freezeAccount) {
+      actions.push({ type: "freezeAccount" });
+    }
+    if (closeAccount) {
+      actions.push({ type: "closeAccount" });
     }
 
     const metricBases = new Set<string>(METRIC_BASE_FIELDS as unknown as string[]);
@@ -354,6 +434,39 @@ export default function RulesPage() {
     setSegmentValue(
       seg && "value" in seg ? String((seg as any).value ?? "") : "",
     );
+
+    setBlockWithdrawal(rule.actions.some((a) => a.type === "blockWithdrawal"));
+    setBlockDeposit(rule.actions.some((a) => a.type === "blockDeposit"));
+    setBlockBet(rule.actions.some((a) => a.type === "blockBet"));
+    setBlockBonus(rule.actions.some((a) => a.type === "blockBonus"));
+    setBlockGameplay(rule.actions.some((a) => a.type === "blockGameplay"));
+
+    const limitStakeAction = rule.actions.find(
+      (a) => a.type === "limitStake",
+    ) as Extract<Rule["actions"][number], { type: "limitStake" }> | undefined;
+    if (limitStakeAction && "value" in limitStakeAction) {
+      setLimitStakeEnabled(true);
+      setLimitStakeValue(
+        limitStakeAction.value != null ? String(limitStakeAction.value) : "",
+      );
+    } else {
+      setLimitStakeEnabled(false);
+      setLimitStakeValue("");
+    }
+
+    setRequireKyc(rule.actions.some((a) => a.type === "requireKyc"));
+
+    const moveTierAction = rule.actions.find(
+      (a) => a.type === "moveCddTier",
+    ) as Extract<Rule["actions"][number], { type: "moveCddTier" }> | undefined;
+    setMoveCddTierValue(
+      moveTierAction && "value" in moveTierAction && moveTierAction.value
+        ? String(moveTierAction.value)
+        : "",
+    );
+
+    setFreezeAccount(rule.actions.some((a) => a.type === "freezeAccount"));
+    setCloseAccount(rule.actions.some((a) => a.type === "closeAccount"));
 
     setIsModalOpen(true);
   }
@@ -790,6 +903,102 @@ export default function RulesPage() {
                         placeholder="Segment name"
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 border-t border-slate-800 pt-2 text-[11px]">
+                  <span className="text-slate-200">Operational controls</span>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={blockWithdrawal}
+                        onChange={(e) => setBlockWithdrawal(e.target.checked)}
+                      />
+                      Block withdrawals
+                    </label>
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={blockDeposit}
+                        onChange={(e) => setBlockDeposit(e.target.checked)}
+                      />
+                      Block deposits
+                    </label>
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={blockBet}
+                        onChange={(e) => setBlockBet(e.target.checked)}
+                      />
+                      Block bets
+                    </label>
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={blockBonus}
+                        onChange={(e) => setBlockBonus(e.target.checked)}
+                      />
+                      Block bonuses
+                    </label>
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={blockGameplay}
+                        onChange={(e) => setBlockGameplay(e.target.checked)}
+                      />
+                      Block gameplay
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-slate-300">Limit stake</label>
+                      <input
+                        type="checkbox"
+                        checked={limitStakeEnabled}
+                        onChange={(e) =>
+                          setLimitStakeEnabled(e.target.checked)
+                        }
+                      />
+                      <input
+                        type="number"
+                        value={limitStakeValue}
+                        onChange={(e) => setLimitStakeValue(e.target.value)}
+                        className="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                        placeholder="Amount"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={requireKyc}
+                        onChange={(e) => setRequireKyc(e.target.checked)}
+                      />
+                      Require KYC
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-slate-300">Move CDD tier</label>
+                      <input
+                        value={moveCddTierValue}
+                        onChange={(e) => setMoveCddTierValue(e.target.value)}
+                        className="w-28 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                        placeholder="e.g. Enhanced"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={freezeAccount}
+                        onChange={(e) => setFreezeAccount(e.target.checked)}
+                      />
+                      Freeze account
+                    </label>
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={closeAccount}
+                        onChange={(e) => setCloseAccount(e.target.checked)}
+                      />
+                      Close account
+                    </label>
                   </div>
                 </div>
               </div>

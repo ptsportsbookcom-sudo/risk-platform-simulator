@@ -80,6 +80,14 @@ export function executeActions(
         break;
       }
 
+      case "blockBonus": {
+        result.playerUpdates.blockedActions = {
+          ...result.playerUpdates.blockedActions,
+          bonus: true,
+        };
+        break;
+      }
+
       case "blockDeposit": {
         result.playerUpdates.canDeposit = false;
         result.playerUpdates.blockedActions = {
@@ -103,6 +111,21 @@ export function executeActions(
           ...result.playerUpdates.blockedActions,
           gameplay: true,
         };
+        break;
+      }
+
+      case "requireKyc": {
+        // Mark KYC as required by setting status to Pending if not already Approved/Failed.
+        if (result.playerUpdates.kycStatus == null) {
+          result.playerUpdates.kycStatus = "Pending";
+        }
+        break;
+      }
+
+      case "freezeAccount": {
+        result.playerUpdates.accountStatus = "Frozen";
+        result.playerUpdates.canDeposit = false;
+        result.playerUpdates.canWithdraw = false;
         break;
       }
 

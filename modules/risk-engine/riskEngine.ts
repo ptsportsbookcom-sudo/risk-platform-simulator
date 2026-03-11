@@ -94,6 +94,7 @@ export interface PlayerRiskState {
     withdrawal?: boolean;
     gameplay?: boolean;
     betting?: boolean;
+    bonus?: boolean;
   };
 }
 

@@ -82,15 +82,23 @@ export type RuleAction =
   | { type: "createAlert" }
   | { type: "createCase" }
   | { type: "assignSegment"; value: string }
+  // sportsbook / financial controls
   | { type: "blockBet" }
   | { type: "limitStake"; value?: number }
-  | { type: "sendToHighRiskReview" }
   | { type: "blockDeposit" }
   | { type: "blockWithdrawal" }
+  // gameplay controls
+  | { type: "blockBonus" }
   | { type: "blockGameplay" }
+  // compliance controls
+  | { type: "requireKyc" }
+  | { type: "moveCddTier"; value?: string }
+  // account / category controls
+  | { type: "freezeAccount" }
   | { type: "closeAccount" }
   | { type: "changeCategory"; value?: string }
-  | { type: "moveCddTier"; value?: string };
+  // workflow / queue routing
+  | { type: "sendToHighRiskReview" };
 
 export interface Rule {
   id: string;
