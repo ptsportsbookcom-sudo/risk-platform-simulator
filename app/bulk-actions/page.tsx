@@ -221,9 +221,15 @@ export default function BulkActionsPage() {
           <button
             type="button"
             onClick={handleExecuteClick}
-            disabled={!bulkAction || !anySelected}
+            disabled={
+              !bulkAction ||
+              !anySelected ||
+              (bulkAction === "assign_segment" && !segmentId)
+            }
             className={`rounded-md border px-3 py-1 text-[11px] ${
-              !bulkAction || !anySelected
+              !bulkAction ||
+              !anySelected ||
+              (bulkAction === "assign_segment" && !segmentId)
                 ? "cursor-not-allowed border-slate-700 bg-slate-800 text-slate-500"
                 : "border-emerald-600 bg-emerald-600/10 text-emerald-100 hover:bg-emerald-600/20"
             }`}

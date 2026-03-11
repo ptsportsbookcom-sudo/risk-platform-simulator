@@ -232,8 +232,19 @@ function reducer(
         sequence: current.sequence,
       };
     }
-    case "RESET":
-      return { state: createInitialState(), sequence: 0 };
+    case "RESET": {
+      const base = createInitialState();
+      const fraudRules = createDefaultFraudRules();
+      const amlRules = createDefaultAmlRules();
+      const rgRules = createDefaultRGRules();
+      return {
+        state: {
+          ...base,
+          rules: [...(base.rules ?? []), ...fraudRules, ...amlRules, ...rgRules],
+        },
+        sequence: 0,
+      };
+    }
     default:
       return current;
   }
