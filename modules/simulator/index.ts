@@ -1,18 +1,14 @@
 // Simulator orchestration module
 // Responsible for translating UI actions into engine signals in a real system.
 
-import type { Event } from "@/types/event";
-import type {
-  RiskEngineState,
-  PlayerRiskState,
-  SimulatorEventInput,
-} from "../risk-engine";
+import type { Event as UiEvent } from "@/types/event";
+import type { RiskEngineState, PlayerRiskState, SimulatorEventInput } from "../risk-engine";
 
 export function createSimulatedEvent(
-  category: Event["category"],
+  category: UiEvent["category"],
   type: string,
   sequence: number,
-): Event {
+): UiEvent {
   return {
     id: `EV-${sequence.toString().padStart(4, "0")}`,
     category,
@@ -41,12 +37,10 @@ export function createDepositEvent(
 
   const extra = player as WithExtra<{ totalDeposits?: number }>;
 
-  const updated: PlayerRiskState = {
+  const updated = {
     ...player,
     balance: player.balance + amount,
-    ...({
-      totalDeposits: (extra.totalDeposits ?? 0) + amount,
-    } as unknown as PlayerRiskState),
+    totalDeposits: (extra.totalDeposits ?? 0) + amount,
   };
 
   const nextState: RiskEngineState = {
@@ -83,12 +77,10 @@ export function createWithdrawalEvent(
 
   const extra = player as WithExtra<{ totalWithdrawals?: number }>;
 
-  const updated: PlayerRiskState = {
+  const updated = {
     ...player,
     balance: player.balance - amount,
-    ...({
-      totalWithdrawals: (extra.totalWithdrawals ?? 0) + amount,
-    } as unknown as PlayerRiskState),
+    totalWithdrawals: (extra.totalWithdrawals ?? 0) + amount,
   };
 
   const nextState: RiskEngineState = {
@@ -120,30 +112,36 @@ export function createBetEvent(
   outcome: BetOutcome,
 ): { nextState: RiskEngineState; event: SimulatorEventInput } {
   const player = state.players[playerId];
+  if (!player) {
+    return {
+      nextState: state,
+      event: {
+        playerId,
+        eventType: "place_bet",
+        amount: stake,
+        metadata: { odds, outcome },
+      },
+    };
+  }
+
   const extra = player as WithExtra<{ totalBets?: number; totalStake?: number }>;
 
   const netWin = outcome === "win" ? stake * (odds - 1) : -stake;
 
-  const updated: PlayerRiskState | undefined = player
-    ? ({
-        ...player,
-        balance: player.balance + netWin,
-        ...({
-          totalBets: (extra.totalBets ?? 0) + 1,
-          totalStake: (extra.totalStake ?? 0) + stake,
-        } as unknown as PlayerRiskState),
-      } as PlayerRiskState)
-    : undefined;
+  const updated = {
+    ...player,
+    balance: player.balance + netWin,
+    totalBets: (extra.totalBets ?? 0) + 1,
+    totalStake: (extra.totalStake ?? 0) + stake,
+  };
 
-  const nextState: RiskEngineState = updated
-    ? {
-        ...state,
-        players: {
-          ...state.players,
-          [playerId]: updated,
-        },
-      }
-    : state;
+  const nextState: RiskEngineState = {
+    ...state,
+    players: {
+      ...state.players,
+      [playerId]: updated,
+    },
+  };
 
   const event: SimulatorEventInput = {
     playerId,
@@ -171,12 +169,10 @@ export function createChargebackEvent(
 
   const extra = player as WithExtra<{ chargebackAmount?: number }>;
 
-  const updated: PlayerRiskState = {
+  const updated = {
     ...player,
     balance: player.balance - amount,
-    ...({
-      chargebackAmount: (extra.chargebackAmount ?? 0) + amount,
-    } as unknown as PlayerRiskState),
+    chargebackAmount: (extra.chargebackAmount ?? 0) + amount,
   };
 
   const nextState: RiskEngineState = {
@@ -218,12 +214,10 @@ export function createFraudAdjustmentEvent(
 
   const extra = player as WithExtra<{ fraudAmount?: number }>;
 
-  const updated: PlayerRiskState = {
+  const updated = {
     ...player,
     balance: player.balance + amount,
-    ...({
-      fraudAmount: (extra.fraudAmount ?? 0) + amount,
-    } as unknown as PlayerRiskState),
+    fraudAmount: (extra.fraudAmount ?? 0) + amount,
   };
 
   const nextState: RiskEngineState = {
@@ -268,12 +262,10 @@ export function createSessionEvent(
     totalSessionTime?: number;
   }>;
 
-  const updated: PlayerRiskState = {
+  const updated = {
     ...player,
-    ...({
-      sessionCount: (extra.sessionCount ?? 0) + 1,
-      totalSessionTime: (extra.totalSessionTime ?? 0) + durationMinutes,
-    } as unknown as PlayerRiskState),
+    sessionCount: (extra.sessionCount ?? 0) + 1,
+    totalSessionTime: (extra.totalSessionTime ?? 0) + durationMinutes,
   };
 
   const nextState: RiskEngineState = {
