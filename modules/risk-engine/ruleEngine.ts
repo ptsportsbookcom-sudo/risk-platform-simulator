@@ -80,7 +80,7 @@ function conditionMatches(
     left = (event.metadata ?? ({} as Record<string, unknown>))[
       "country" as keyof typeof event.metadata
     ];
-  } else if (field === "event.deviceId") {
+  } else if (field === "event.deviceId" || field === "event.device") {
     left = (event.metadata ?? ({} as Record<string, unknown>))[
       "deviceId" as keyof typeof event.metadata
     ];
@@ -109,6 +109,11 @@ function conditionMatches(
         break;
       case "player.deviceCount":
         left = (player.deviceIds ?? []).length;
+        break;
+      case "player.sessionCount":
+        left =
+          player.metrics?.["casino_session_count_24h" as keyof typeof player.metrics] ??
+          player.metrics?.["casino_session_count" as keyof typeof player.metrics];
         break;
       default:
         left = undefined;

@@ -84,12 +84,15 @@ const CONDITION_FIELDS = [
   "event.type",
   "event.country",
   "event.deviceId",
+  "event.device",
   "event.ip",
-  // player fields
+  "event.timestamp",
+  // player synthetic fields
   "player.depositCount24h",
   "player.withdrawalCount24h",
   "player.betCount24h",
   "player.deviceCount",
+  "player.sessionCount",
   // generic fields (backwards compatible)
   "amount",
   "segments",
@@ -832,13 +835,53 @@ export default function RulesPage() {
                             e.target.value as (typeof CONDITION_FIELDS)[number],
                           )
                         }
-                        className="w-32 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                        className="w-40 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
                       >
-                        {CONDITION_FIELDS.map((f) => (
-                          <option key={f} value={f}>
-                            {f}
+                        <optgroup label="Event Fields">
+                          <option value="event.amount">event.amount</option>
+                          <option value="event.country">event.country</option>
+                          <option value="event.ip">event.ip</option>
+                          <option value="event.device">event.device</option>
+                          <option value="event.timestamp">event.timestamp</option>
+                        </optgroup>
+                        <optgroup label="Player Metrics">
+                          <option value="player.depositCount24h">
+                            player.depositCount
                           </option>
-                        ))}
+                          <option value="player.withdrawalCount24h">
+                            player.withdrawalCount
+                          </option>
+                          <option value="player.betCount24h">
+                            player.betCount
+                          </option>
+                          <option value="player.deviceCount">
+                            player.deviceCount
+                          </option>
+                          <option value="player.sessionCount">
+                            player.sessionCount
+                          </option>
+                        </optgroup>
+                        <optgroup label="Advanced Metrics">
+                          {CONDITION_FIELDS.filter(
+                            (f) =>
+                              ![
+                                "event.amount",
+                                "event.country",
+                                "event.ip",
+                                "event.device",
+                                "event.timestamp",
+                                "player.depositCount24h",
+                                "player.withdrawalCount24h",
+                                "player.betCount24h",
+                                "player.deviceCount",
+                                "player.sessionCount",
+                              ].includes(f),
+                          ).map((f) => (
+                            <option key={f} value={f}>
+                              {f}
+                            </option>
+                          ))}
+                        </optgroup>
                       </select>
 
                       {/* Operator selector, displayed as symbolic operators */}
