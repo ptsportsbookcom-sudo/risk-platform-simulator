@@ -363,10 +363,14 @@ export function processEvent(
 
     // Legacy createCase handling (if not already handled by actions)
     if (rule.createCase && !ruleActions.some((a) => a.type === "createCase")) {
+      // Case should only reference alerts created by this rule, not all alerts so far.
+      const alertsForRule = newAlerts.filter(
+        (a) => a.ruleTriggered === rule.ruleId,
+      );
       const caseRecord: EngineCase = {
         id: nextId("CASE"),
         playerId: event.playerId,
-        alerts: newAlerts.map((a) => a.id),
+        alerts: alertsForRule.map((a) => a.id),
         openedAt: event.timestamp,
         status: "Open",
       };
@@ -527,8 +531,8 @@ export function getDashboardStats(state: RiskEngineState) {
   ).length;
   const highRiskPlayers = Object.values(state.players).filter(
     (p) =>
-      (p.segments ?? []).includes("High Risk") ||
-      (p.segments ?? []).includes("Critical Risk"),
+      (p.segments ?? []).includes("high_risk") ||
+      (p.segments ?? []).includes("critical_risk"),
   ).length;
   const pendingCases = state.cases.filter((c) => c.status === "Open").length;
   const highRiskBets = state.highRiskBets.filter(
