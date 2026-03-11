@@ -10,33 +10,47 @@ import { useMemo, useState } from "react";
 function summarizeActions(actions: Rule["actions"]) {
   const parts: string[] = [];
   for (const a of actions) {
-    if (a.type === "createAlert") {
+    const type = (a as any).type as string;
+
+    if (type === "createAlert" || type === "create_alert") {
       parts.push("Alert");
-    } else if (a.type === "createCase") {
+    } else if (type === "createCase" || type === "create_case") {
       parts.push("Case");
-    } else if (a.type === "assignSegment") {
-      parts.push(`Segment: ${a.value}`);
-    } else if (a.type === "blockWithdrawal") {
+    } else if (type === "assignSegment" || type === "assign_segment") {
+      const value =
+        "value" in a
+          ? (a as any).value
+          : (a as any).params?.segment ?? (a as any).params?.value;
+      parts.push(`Segment: ${value ?? "updated"}`);
+    } else if (type === "blockWithdrawal" || type === "block_withdrawal") {
       parts.push("Block Withdrawals");
-    } else if (a.type === "blockDeposit") {
+    } else if (type === "blockDeposit" || type === "block_deposit") {
       parts.push("Block Deposits");
-    } else if (a.type === "limitStake") {
+    } else if (type === "limitStake" || type === "limit_stake") {
+      const value =
+        "value" in a
+          ? (a as any).value
+          : (a as any).params?.amount ?? (a as any).params?.value;
       parts.push(
-        a.value != null ? `Limit Stake ≤ ${a.value}` : "Limit Stake",
+        value != null ? `Limit Stake ≤ ${value}` : "Limit Stake",
       );
-    } else if (a.type === "blockBet") {
+    } else if (type === "blockBet" || type === "block_bet") {
       parts.push("Block Bets");
-    } else if (a.type === "blockBonus") {
+    } else if (type === "blockBonus" || type === "block_bonus") {
       parts.push("Block Bonuses");
-    } else if (a.type === "blockGameplay") {
+    } else if (type === "blockGameplay" || type === "block_gameplay") {
       parts.push("Block Gameplay");
-    } else if (a.type === "requireKyc") {
+    } else if (type === "requireKyc" || type === "require_kyc") {
       parts.push("Require KYC");
-    } else if (a.type === "moveCddTier") {
-      parts.push(`CDD Tier → ${a.value ?? "updated"}`);
-    } else if (a.type === "freezeAccount") {
+    } else if (type === "moveCddTier" || type === "move_cdd_tier") {
+      const value =
+        "value" in a
+          ? (a as any).value
+          : (a as any).params?.tier ?? (a as any).params?.value;
+      parts.push(`CDD Tier → ${value ?? "updated"}`);
+    } else if (type === "freezeAccount" || type === "freeze_account") {
       parts.push("Freeze Account");
-    } else if (a.type === "closeAccount") {
+    } else if (type === "closeAccount" || type === "close_account") {
       parts.push("Close Account");
     }
   }
@@ -268,7 +282,50 @@ export default function RulesPage() {
       return;
     }
 
-    const actionsPayload = actions;
+    // Map UI actions (snake_case + params) into engine RuleAction union (camelCase + value)
+    const actionsPayload: Rule["actions"] = actions.map((a) => {
+      const params = (a.params ?? {}) as Record<string, unknown>;
+      switch (a.type) {
+        case "create_alert":
+          return { type: "createAlert" };
+        case "create_case":
+          return { type: "createCase" };
+        case "assign_segment":
+          return {
+            type: "assignSegment",
+            value: (params.segment ?? params.value) as string | undefined,
+          };
+        case "block_withdrawal":
+          return { type: "blockWithdrawal" };
+        case "block_deposit":
+          return { type: "blockDeposit" };
+        case "block_bet":
+          return { type: "blockBet" };
+        case "block_bonus":
+          return { type: "blockBonus" };
+        case "block_gameplay":
+          return { type: "blockGameplay" };
+        case "require_kyc":
+          return { type: "requireKyc" };
+        case "freeze_account":
+          return { type: "freezeAccount" };
+        case "close_account":
+          return { type: "closeAccount" };
+        case "limit_stake":
+          return {
+            type: "limitStake",
+            value: params.amount as number | undefined,
+          };
+        case "move_cdd_tier":
+          return {
+            type: "moveCddTier",
+            value: (params.tier ?? params.value) as string | undefined,
+          };
+        default:
+          // Unknown/legacy types: pass through as-is for forwards-compatibility
+          return a as any;
+      }
+    });
 
     const metricBases = new Set<string>(METRIC_BASE_FIELDS as unknown as string[]);
 
@@ -393,14 +450,51 @@ export default function RulesPage() {
 
     setSeverity((rule.severity as any) ?? "medium");
 
-    setActions(
-      (rule.actions as unknown as { type: string; params?: Record<string, unknown> }[]).map(
-        (a) => ({
-          type: a.type,
-          params: a.params ?? {},
-        }),
-      ),
-    );
+    // Map stored RuleAction union (camelCase + value) back into UI actions (snake_case + params)
+    const uiActions =
+      (rule.actions as Rule["actions"] | undefined)?.map((a) => {
+        switch (a.type) {
+          case "createAlert":
+            return { type: "create_alert", params: {} as Record<string, unknown> };
+          case "createCase":
+            return { type: "create_case", params: {} as Record<string, unknown> };
+          case "assignSegment":
+            return {
+              type: "assign_segment",
+              params: { segment: (a as any).value ?? "" },
+            };
+          case "blockWithdrawal":
+            return { type: "block_withdrawal", params: {} };
+          case "blockDeposit":
+            return { type: "block_deposit", params: {} };
+          case "blockBet":
+            return { type: "block_bet", params: {} };
+          case "blockBonus":
+            return { type: "block_bonus", params: {} };
+          case "blockGameplay":
+            return { type: "block_gameplay", params: {} };
+          case "requireKyc":
+            return { type: "require_kyc", params: {} };
+          case "freezeAccount":
+            return { type: "freeze_account", params: {} };
+          case "closeAccount":
+            return { type: "close_account", params: {} };
+          case "limitStake":
+            return {
+              type: "limit_stake",
+              params: { amount: (a as any).value ?? "" },
+            };
+          case "moveCddTier":
+            return {
+              type: "move_cdd_tier",
+              params: { tier: (a as any).value ?? "" },
+            };
+          default:
+            return { type: (a as any).type as string, params: {} as Record<string, unknown> };
+        }
+      }) ?? [];
+
+    setActions(uiActions);
 
     setIsModalOpen(true);
   }
