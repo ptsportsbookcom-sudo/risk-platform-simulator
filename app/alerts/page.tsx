@@ -23,18 +23,21 @@ export default function AlertsPage() {
 
   const [statusFilter, setStatusFilter] = useState<"all" | (typeof STATUSES)[number]>("all");
   const [severityFilter, setSeverityFilter] = useState<"all" | "Critical" | "High" | "Medium" | "Low">("all");
-  const [assignedFilter, setAssignedFilter] = useState<"all" | (typeof ANALYSTS)[number]>("all");
+  const [assignedFilter, setAssignedFilter] = useState<
+    "all" | "unassigned" | (typeof ANALYSTS)[number]
+  >("all");
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
   const filteredAlerts = useMemo(() => {
     return alerts.filter((a) => {
       if (statusFilter !== "all" && a.status !== statusFilter) return false;
       if (severityFilter !== "all" && a.severity !== severityFilter) return false;
-      if (
-        assignedFilter !== "all" &&
-        (a.assignedTo ?? null) !== assignedFilter
-      ) {
-        return false;
+      if (assignedFilter !== "all") {
+        if (assignedFilter === "unassigned") {
+          if (a.assignedTo != null) return false;
+        } else if ((a.assignedTo ?? null) !== assignedFilter) {
+          return false;
+        }
       }
       return true;
     });
@@ -93,11 +96,14 @@ export default function AlertsPage() {
             <select
               value={assignedFilter}
               onChange={(e) =>
-                setAssignedFilter(e.target.value as typeof assignedFilter)
+                setAssignedFilter(
+                  e.target.value as "all" | "unassigned" | (typeof ANALYSTS)[number],
+                )
               }
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
             >
               <option value="all">All</option>
+              <option value="unassigned">Unassigned</option>
               {ANALYSTS.map((a) => (
                 <option key={a} value={a}>
                   {a}
@@ -182,12 +188,13 @@ export default function AlertsPage() {
                       <div className="flex flex-wrap gap-1">
                         <select
                           value={a.assignedTo ?? ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value;
                             assignAlert(
                               a.id,
-                              e.target.value as (typeof ANALYSTS)[number],
-                            )
-                          }
+                              val === "" ? null : (val as (typeof ANALYSTS)[number]),
+                            );
+                          }}
                           className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-100"
                         >
                           <option value="">Assign</option>

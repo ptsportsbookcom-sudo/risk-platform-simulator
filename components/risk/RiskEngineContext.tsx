@@ -79,7 +79,7 @@ interface RiskEngineContextValue {
   modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) => void;
   resolveAlert: (alertId: string) => void;
   closeCase: (caseId: string) => void;
-  assignAlert: (alertId: string, analyst: string) => void;
+  assignAlert: (alertId: string, analyst: string | null) => void;
   updateAlertStatus: (
     alertId: string,
     status: "open" | "investigating" | "resolved" | "dismissed" | "escalated",
@@ -416,7 +416,7 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             sequence: internal.sequence,
           },
         }),
-      assignAlert: (alertId: string, analyst: string) =>
+      assignAlert: (alertId: string, analyst: string | null) =>
         dispatch({
           type: "COMMIT",
           payload: {
