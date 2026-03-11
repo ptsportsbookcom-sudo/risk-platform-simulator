@@ -42,12 +42,7 @@ export interface EngineEvent {
   metadata?: Record<string, unknown>;
 }
 
-export type AlertSeverity =
-  | "Low"
-  | "Medium"
-  | "High"
-  | "Critical"
-  | "Sportsbook";
+export type AlertSeverity = "Low" | "Medium" | "High" | "Critical";
 
 import type { RuleAction } from "./ruleTypes";
 
@@ -237,7 +232,7 @@ export function evaluateRules(
       ruleId: "R5_LARGE_BET",
       description: "Large bet above threshold placed.",
       createAlert: true,
-      alertSeverity: "Sportsbook",
+      alertSeverity: "High",
     });
   }
 

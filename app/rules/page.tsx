@@ -520,7 +520,7 @@ export default function RulesPage() {
             {filteredRules.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-3 py-3 text-center text-xs text-slate-400"
                 >
                   No rules configured yet.

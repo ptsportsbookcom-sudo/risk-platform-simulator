@@ -37,7 +37,6 @@ const fraudEvents: ButtonConfig[] = [
 const complianceEvents: ButtonConfig[] = [
   { label: "KYC Failure", engineType: "kyc_failure" },
   { label: "CDD Threshold Breach", engineType: "cdd_threshold_breach" },
-  { label: "Affordability Breach", engineType: "cdd_threshold_breach" },
 ];
 
 const SAMPLE_COUNTRIES = ["UK", "DE", "SE", "FI", "NO", "IE", "NL"];

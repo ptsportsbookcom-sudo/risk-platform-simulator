@@ -83,7 +83,7 @@ export default function PlayerDetailPage() {
       .filter((a) => c.alerts.includes(a.id))
       .map((a) => a.severity);
     if (severities.includes("Critical")) return "High";
-    if (severities.includes("High") || severities.includes("Sportsbook")) {
+    if (severities.includes("High")) {
       return "Medium";
     }
     return "Low";
@@ -466,8 +466,7 @@ export default function PlayerDetailPage() {
                         variant={
                           a.severity === "Critical"
                             ? "danger"
-                            : a.severity === "High" ||
-                                a.severity === "Sportsbook"
+                            : a.severity === "High"
                               ? "warning"
                               : "outline"
                         }

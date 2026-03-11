@@ -149,8 +149,7 @@ export default function AlertsPage() {
                         variant={
                           a.severity === "Critical"
                             ? "danger"
-                            : a.severity === "High" ||
-                                a.severity === "Sportsbook"
+                            : a.severity === "High"
                               ? "warning"
                               : "outline"
                         }
@@ -296,8 +295,7 @@ export default function AlertsPage() {
                   variant={
                     selectedAlert.severity === "Critical"
                       ? "danger"
-                      : selectedAlert.severity === "High" ||
-                          selectedAlert.severity === "Sportsbook"
+                      : selectedAlert.severity === "High"
                         ? "warning"
                         : "outline"
                   }
