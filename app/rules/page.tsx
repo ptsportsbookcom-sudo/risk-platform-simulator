@@ -286,6 +286,17 @@ export default function RulesPage() {
     }
 
     // Map UI actions (snake_case + params) into engine RuleAction union (camelCase + value)
+    // Basic validation for required action params (e.g. assign_segment must have a value)
+    for (const a of actions) {
+      if (a.type === "assign_segment") {
+        const seg = (a.params as Record<string, unknown> | undefined)?.segment;
+        if (!seg || String(seg).trim().length === 0) {
+          alert("Please provide a segment value for the assign_segment action.");
+          return;
+        }
+      }
+    }
+
     const actionsPayload: Rule["actions"] = actions.map((a) => {
       const params = (a.params ?? {}) as Record<string, unknown>;
       switch (a.type) {

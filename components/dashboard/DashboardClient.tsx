@@ -14,7 +14,7 @@ export function DashboardClient() {
 
   const players = Object.values(state.players);
 
-  const pendingKyc = players.filter((p) => p.kycLevel !== "KYC_2").length;
+  const pendingKyc = players.filter((p) => p.kycStatus === "Pending").length;
   const enhancedCdd = players.filter((p) => p.cddTier === "Enhanced").length;
   const negativeBalances = players.filter((p) => p.negativeBalance).length;
 

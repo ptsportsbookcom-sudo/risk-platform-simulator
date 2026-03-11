@@ -47,7 +47,7 @@ function randomChoice<T>(arr: T[]): T {
 }
 
 function randomIp() {
-  return `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+  return `${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
 }
 
 function buildSecurityMetadata(type: EngineEventType) {
