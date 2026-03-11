@@ -145,7 +145,6 @@ export default function BulkActionsPage() {
           }
           break;
         case "rg_monitoring":
-          updatePlayerStatus(playerId, { rgMonitoring: true } as any);
           logAudit({
             id: `AUDIT-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             playerId,

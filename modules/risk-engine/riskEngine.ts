@@ -297,7 +297,7 @@ export function processEvent(
     const ruleAlerts: EngineAlert[] = [];
 
     // Maintain backwards compatibility: handle legacy createAlert/createCase/assignSegments
-    if (rule.createAlert && rule.alertSeverity) {
+    if (rule.createAlert) {
       // If rule has actions, use ActionExecutor; otherwise use legacy path
       if (ruleActions.length > 0) {
         const actionResult = executeActions(
@@ -305,7 +305,7 @@ export function processEvent(
           event.playerId,
           rule.ruleId,
           event.timestamp,
-          rule.alertSeverity,
+          rule.alertSeverity ?? "Medium",
           state,
           nextId,
         );
@@ -323,7 +323,7 @@ export function processEvent(
           id: nextId("ALERT"),
           playerId: event.playerId,
           ruleTriggered: rule.ruleId,
-          severity: rule.alertSeverity,
+          severity: rule.alertSeverity ?? "Medium",
           timestamp: event.timestamp,
           createdAt: event.timestamp,
           status: "open",
