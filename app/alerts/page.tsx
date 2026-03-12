@@ -6,6 +6,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 
+function renderMeta(value: unknown) {
+  if (value === null || value === undefined) return null;
+  return String(value);
+}
+
 const STATUSES = [
   "open",
   "investigating",
@@ -395,25 +400,25 @@ export default function AlertsPage() {
                         relatedEvent.amount != null && (
                           <div className="flex items-center justify-between">
                             <span className="text-slate-400">Amount</span>
-                            <span>{relatedEvent.amount}</span>
+                            <span>{renderMeta(relatedEvent.amount)}</span>
                           </div>
                         )}
-                      {meta.product && (
+                      {meta.product !== undefined && meta.product !== null && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400">Product</span>
-                          <span>{String(meta.product)}</span>
+                          <span>{renderMeta(meta.product)}</span>
                         </div>
                       )}
-                      {meta.device && (
+                      {meta.device !== undefined && meta.device !== null && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400">Device</span>
-                          <span>{String(meta.device)}</span>
+                          <span>{renderMeta(meta.device)}</span>
                         </div>
                       )}
-                      {meta.country && (
+                      {meta.country !== undefined && meta.country !== null && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400">Country</span>
-                          <span>{String(meta.country)}</span>
+                          <span>{renderMeta(meta.country)}</span>
                         </div>
                       )}
                     </div>
