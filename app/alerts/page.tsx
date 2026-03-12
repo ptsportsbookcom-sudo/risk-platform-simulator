@@ -148,7 +148,8 @@ export default function AlertsPage() {
                       {player ? `${player.name} (${a.playerId})` : a.playerId}
                     </TD>
                     <TD className="text-xs text-slate-100">
-                      {a.ruleTriggered}
+                      {state.rules.find((r) => r.id === a.ruleTriggered)?.name ??
+                        a.ruleTriggered}
                     </TD>
                     <TD>
                       <Badge
@@ -269,122 +270,258 @@ export default function AlertsPage() {
           </Table>
         </Card>
 
-        <Card
-          title="Alert Details"
-          description="Context for the selected alert."
-        >
+        <Card title="Alert Details" description="Context for the selected alert.">
           {!selectedAlert ? (
             <p className="text-xs text-slate-400">
               Select an alert from the table to view details.
             </p>
           ) : (
-            <div className="space-y-2 text-xs text-slate-200">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Alert ID</span>
-                <span className="font-mono text-[11px] text-slate-100">
-                  {selectedAlert.id}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Player</span>
-                <span>
-                  {state.players[selectedAlert.playerId]?.name ??
-                    selectedAlert.playerId}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Rule</span>
-                <span>{selectedAlert.ruleTriggered}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Severity</span>
-                <Badge
-                  variant={
-                    selectedAlert.severity === "Critical"
-                      ? "danger"
-                      : selectedAlert.severity === "High"
-                        ? "warning"
-                        : "outline"
-                  }
-                >
-                  {selectedAlert.severity}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Status</span>
-                <Badge
-                  variant={
-                    selectedAlert.status === "resolved" ||
-                    selectedAlert.status === "dismissed"
-                      ? "success"
-                      : selectedAlert.status === "open"
-                        ? "warning"
-                        : selectedAlert.status === "investigating"
-                          ? "outline"
-                          : "danger"
-                  }
-                >
-                  {selectedAlert.status}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Assigned To</span>
-                <span>{selectedAlert.assignedTo ?? "Unassigned"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Created At</span>
-                <span className="font-mono text-[11px] text-slate-300">
-                  {new Date(
-                    selectedAlert.createdAt ?? selectedAlert.timestamp,
-                  ).toLocaleString()}
-                </span>
-              </div>
-
-              <div className="pt-2">
-                <span className="text-[11px] text-slate-400">Event details</span>
-                <div className="mt-1 rounded-md border border-slate-800 bg-slate-950/60 p-2 text-[11px] text-slate-200">
-                  {(() => {
-                    const relatedEvent = state.events.find(
-                      (e) =>
-                        e.playerId === selectedAlert.playerId &&
-                        (e.triggeredRules ?? []).includes(
-                          selectedAlert.ruleTriggered,
-                        ),
-                    );
-                    if (!relatedEvent) {
-                      return (
-                        <p className="text-slate-500">
-                          No related event found in recent log.
-                        </p>
-                      );
+            <div className="space-y-4 text-xs text-slate-200">
+              {/* Alert Summary */}
+              <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <h3 className="text-[11px] font-semibold text-slate-100">
+                  Alert Summary
+                </h3>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Alert ID</span>
+                  <span className="font-mono text-[11px] text-slate-100">
+                    {selectedAlert.id}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Player</span>
+                  <span>
+                    {state.players[selectedAlert.playerId]?.name ??
+                      selectedAlert.playerId}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Rule</span>
+                  <span>
+                    {state.rules.find(
+                      (r) => r.id === selectedAlert.ruleTriggered,
+                    )?.name ??
+                      selectedAlert.ruleTriggered}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Severity</span>
+                  <Badge
+                    variant={
+                      selectedAlert.severity === "Critical"
+                        ? "danger"
+                        : selectedAlert.severity === "High"
+                          ? "warning"
+                          : "outline"
                     }
-                    return (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Event ID</span>
-                          <span className="font-mono text-[11px] text-slate-300">
-                            {relatedEvent.id}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Type</span>
-                          <span>{relatedEvent.eventType}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Timestamp</span>
-                          <span className="font-mono text-[11px] text-slate-300">
-                            {new Date(
-                              relatedEvent.timestamp,
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                      </>
-                    );
-                  })()}
+                  >
+                    {selectedAlert.severity}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Status</span>
+                  <Badge
+                    variant={
+                      selectedAlert.status === "resolved" ||
+                      selectedAlert.status === "dismissed"
+                        ? "success"
+                        : selectedAlert.status === "open"
+                          ? "warning"
+                          : selectedAlert.status === "investigating"
+                            ? "outline"
+                            : "danger"
+                    }
+                  >
+                    {selectedAlert.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Assigned To</span>
+                  <span>{selectedAlert.assignedTo ?? "Unassigned"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Created At</span>
+                  <span className="font-mono text-[11px] text-slate-300">
+                    {new Date(
+                      selectedAlert.createdAt ?? selectedAlert.timestamp,
+                    ).toLocaleString()}
+                  </span>
                 </div>
               </div>
 
-              <div className="pt-2 text-[11px] text-slate-400">
+              {/* Event Information */}
+              <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <h3 className="text-[11px] font-semibold text-slate-100">
+                  Event Information
+                </h3>
+                {(() => {
+                  const relatedEvent = state.events.find(
+                    (e) =>
+                      e.playerId === selectedAlert.playerId &&
+                      (e.triggeredRules ?? []).includes(
+                        selectedAlert.ruleTriggered,
+                      ),
+                  );
+                  if (!relatedEvent) {
+                    return (
+                      <p className="text-[11px] text-slate-500">
+                        No related event found in recent log.
+                      </p>
+                    );
+                  }
+                  const meta = (relatedEvent.metadata ??
+                    {}) as Record<string, unknown>;
+                  return (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Event ID</span>
+                        <span className="font-mono text-[11px] text-slate-300">
+                          {relatedEvent.id}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Event Type</span>
+                        <span>{relatedEvent.eventType}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Timestamp</span>
+                        <span className="font-mono text-[11px] text-slate-300">
+                          {new Date(
+                            relatedEvent.timestamp,
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      {"amount" in relatedEvent &&
+                        relatedEvent.amount != null && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Amount</span>
+                            <span>{relatedEvent.amount}</span>
+                          </div>
+                        )}
+                      {meta.product && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Product</span>
+                          <span>{String(meta.product)}</span>
+                        </div>
+                      )}
+                      {meta.device && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Device</span>
+                          <span>{String(meta.device)}</span>
+                        </div>
+                      )}
+                      {meta.country && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Country</span>
+                          <span>{String(meta.country)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Trigger Condition & Actions Executed */}
+              {(() => {
+                const rule = state.rules.find(
+                  (r) => r.id === selectedAlert.ruleTriggered,
+                );
+                return (
+                  <>
+                    <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                      <h3 className="text-[11px] font-semibold text-slate-100">
+                        Trigger Condition
+                      </h3>
+                      {!rule ? (
+                        <p className="text-[11px] text-slate-500">
+                          Rule definition not found.
+                        </p>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-slate-300">
+                            Condition logic evaluated for this alert.
+                          </div>
+                          <div className="rounded-md bg-slate-900/80 p-2 font-mono text-[10px] text-slate-100">
+                            {JSON.stringify(rule.conditions, null, 2)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                      <h3 className="text-[11px] font-semibold text-slate-100">
+                        Actions Executed
+                      </h3>
+                      {!rule ? (
+                        <p className="text-[11px] text-slate-500">
+                          Rule definition not found.
+                        </p>
+                      ) : (
+                        <div className="space-y-1 text-[11px] text-slate-300">
+                          {rule.actions && rule.actions.length > 0 ? (
+                            rule.actions.map((action, idx) => (
+                              <div key={`${rule.id}-action-${idx}`}>
+                                {formatActionType(action.type)}{" "}
+                                <span className="text-emerald-400">✔</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-slate-500">
+                              No configured actions for this rule.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* System Impact */}
+              <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <h3 className="text-[11px] font-semibold text-slate-100">
+                  System Impact
+                </h3>
+                {(() => {
+                  const rule = state.rules.find(
+                    (r) => r.id === selectedAlert.ruleTriggered,
+                  );
+                  const actions = rule?.actions ?? [];
+                  const hasAction = (type: string) =>
+                    actions.some((a) => a.type === type);
+                  const betBlocked = hasAction("block_bet");
+                  const segmentAssigned = hasAction("assign_segment");
+                  const caseCreated =
+                    hasAction("create_case") ||
+                    state.cases.some((c) =>
+                      (c.alerts ?? []).includes(selectedAlert.id),
+                    );
+                  const alertCreated = true;
+
+                  return (
+                    <div className="space-y-1 text-[11px] text-slate-300">
+                      <div className="flex items-center justify-between">
+                        <span>Bet Blocked</span>
+                        <span>{betBlocked ? "YES" : "NO"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Alert Created</span>
+                        <span>{alertCreated ? "YES" : "NO"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Case Created</span>
+                        <span>{caseCreated ? "YES" : "NO"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Segment Assigned</span>
+                        <span>{segmentAssigned ? "YES" : "NO"}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="pt-1 text-[11px] text-slate-400">
                 Actions can also be performed directly from the table.
               </div>
             </div>
