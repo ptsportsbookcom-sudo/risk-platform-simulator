@@ -100,6 +100,24 @@ export default function SimulatorPage() {
   const [overrideDeviceCount, setOverrideDeviceCount] = useState<string>("");
   const [overrideSessionCount, setOverrideSessionCount] = useState<string>("");
 
+  const showAmount =
+    customType === "deposit" ||
+    customType === "withdraw" ||
+    (customType as string) === "bet";
+  const showCurrency = showAmount;
+  const showCountry =
+    customType === "deposit" ||
+    customType === "withdraw" ||
+    (customType as string) === "bet" ||
+    customType === "login";
+  const showDevice = showCountry;
+  const showIp = showCountry;
+  const showProduct = (customType as string) === "bet";
+  const isSportsbook =
+    (customType as string) === "bet" && customProduct === "sportsbook";
+  const isCasino =
+    (customType as string) === "bet" && customProduct === "casino";
+
   function triggerEvent(button: ButtonConfig) {
     let amount: number | undefined;
     switch (button.engineType) {
@@ -199,12 +217,20 @@ export default function SimulatorPage() {
       id: `SIM-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       playerId: DEFAULT_PLAYER_ID,
       type: customType,
-      amount,
-      currency: customCurrency || "EUR",
-      country: customCountry === "Any" ? undefined : customCountry,
-      device: customDevice === "Any" ? undefined : customDevice,
-      ip: customIp || randomIp(),
+      ...(showAmount && { amount }),
+      ...(showCurrency && { currency: customCurrency || "EUR" }),
+      ...(showCountry &&
+        customCountry !== "Any" && { country: customCountry }),
+      ...(showDevice &&
+        customDevice !== "Any" && { device: customDevice }),
+      ...(showIp && { ip: customIp || randomIp() }),
       timestamp: Date.now(),
+      ...(showProduct && { product: customProduct }),
+      ...(isSportsbook && { sport: customSport }),
+      ...(isSportsbook && { marketType: customMarketType }),
+      ...(isSportsbook && { betType: customBetType }),
+      ...(isCasino && { gameType: customGameType }),
+      ...(isCasino && { provider: customProvider }),
     };
 
     const current = state.players[DEFAULT_PLAYER_ID];
@@ -219,7 +245,7 @@ export default function SimulatorPage() {
         );
       }
       if (overrideBetCount.trim()) {
-        metricsPatch.bet_count = Number(overrideBetCount.trim());
+        metricsPatch.bet_count_24h = Number(overrideBetCount.trim());
       }
       if (overrideSessionCount.trim()) {
         metricsPatch.session_count_30m = Number(overrideSessionCount.trim());
@@ -254,12 +280,18 @@ export default function SimulatorPage() {
     const result = processSimulatorEvent({
       playerId: uiEvent.playerId,
       eventType: uiEvent.type,
-      amount: uiEvent.amount,
+      amount: "amount" in uiEvent ? uiEvent.amount : undefined,
       metadata: {
-        currency: uiEvent.currency,
+        ...(uiEvent.currency ? { currency: uiEvent.currency } : {}),
         ...(uiEvent.country ? { country: uiEvent.country } : {}),
         ...(uiEvent.device ? { device: uiEvent.device } : {}),
-        ipAddress: uiEvent.ip,
+        ...(uiEvent.ip ? { ipAddress: uiEvent.ip } : {}),
+        ...(uiEvent.product ? { product: uiEvent.product } : {}),
+        ...(uiEvent.sport ? { sport: uiEvent.sport } : {}),
+        ...(uiEvent.marketType ? { marketType: uiEvent.marketType } : {}),
+        ...(uiEvent.betType ? { betType: uiEvent.betType } : {}),
+        ...(uiEvent.gameType ? { gameType: uiEvent.gameType } : {}),
+        ...(uiEvent.provider ? { provider: uiEvent.provider } : {}),
         simulatorEventId: uiEvent.id,
         simulatorTimestamp: uiEvent.timestamp,
       },
@@ -349,92 +381,104 @@ export default function SimulatorPage() {
               <option value="cdd_threshold_breach">cdd_threshold_breach</option>
             </select>
           </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] text-slate-400">Amount</label>
-            <input
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-              placeholder="e.g. 200"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] text-slate-400">Currency</label>
-            <select
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={customCurrency}
-              onChange={(e) => setCustomCurrency(e.target.value)}
-            >
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="USD">USD</option>
-              <option value="BTC">BTC</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] text-slate-400">Country</label>
-            <select
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={customCountry}
-              onChange={(e) => setCustomCountry(e.target.value)}
-            >
-              <option value="Any">Any</option>
-              <option value="UK">UK</option>
-              <option value="DE">DE</option>
-              <option value="FR">FR</option>
-              <option value="IT">IT</option>
-              <option value="ES">ES</option>
-              <option value="NL">NL</option>
-              <option value="US">US</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] text-slate-400">Device</label>
-            <select
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={customDevice}
-              onChange={(e) => setCustomDevice(e.target.value)}
-            >
-              <option value="Any">Any</option>
-              <option value="desktop">desktop</option>
-              <option value="mobile">mobile</option>
-              <option value="tablet">tablet</option>
-              <option value="vpn">vpn</option>
-              <option value="bot">bot</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] text-slate-400">IP Address</label>
-            <div className="flex gap-2">
+          {showAmount && (
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-400">Amount</label>
               <input
                 className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-                value={customIp}
-                onChange={(e) => setCustomIp(e.target.value)}
-                placeholder="e.g. 192.168.0.1"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="e.g. 200"
               />
-              <button
-                type="button"
-                onClick={() => setCustomIp(randomIp())}
-                className="whitespace-nowrap rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[10px] text-slate-100 hover:border-emerald-500"
-              >
-                Generate IP
-              </button>
             </div>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] text-slate-400">Product</label>
-            <select
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={customProduct}
-              onChange={(e) => setCustomProduct(e.target.value)}
-            >
-              <option value="sportsbook">sportsbook</option>
-              <option value="casino">casino</option>
-              <option value="poker">poker</option>
-              <option value="virtuals">virtuals</option>
-            </select>
-          </div>
-          {customProduct === "sportsbook" && (
+          )}
+          {showCurrency && (
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-400">Currency</label>
+              <select
+                className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                value={customCurrency}
+                onChange={(e) => setCustomCurrency(e.target.value)}
+              >
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="USD">USD</option>
+                <option value="BTC">BTC</option>
+              </select>
+            </div>
+          )}
+          {showCountry && (
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-400">Country</label>
+              <select
+                className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                value={customCountry}
+                onChange={(e) => setCustomCountry(e.target.value)}
+              >
+                <option value="Any">Any</option>
+                <option value="UK">UK</option>
+                <option value="DE">DE</option>
+                <option value="FR">FR</option>
+                <option value="IT">IT</option>
+                <option value="ES">ES</option>
+                <option value="NL">NL</option>
+                <option value="US">US</option>
+              </select>
+            </div>
+          )}
+          {showDevice && (
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-400">Device</label>
+              <select
+                className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                value={customDevice}
+                onChange={(e) => setCustomDevice(e.target.value)}
+              >
+                <option value="Any">Any</option>
+                <option value="desktop">desktop</option>
+                <option value="mobile">mobile</option>
+                <option value="tablet">tablet</option>
+                <option value="vpn">vpn</option>
+                <option value="bot">bot</option>
+              </select>
+            </div>
+          )}
+          {showIp && (
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-400">IP Address</label>
+              <div className="flex gap-2">
+                <input
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                  value={customIp}
+                  onChange={(e) => setCustomIp(e.target.value)}
+                  placeholder="e.g. 192.168.0.1"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCustomIp(randomIp())}
+                  className="whitespace-nowrap rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[10px] text-slate-100 hover:border-emerald-500"
+                >
+                  Generate IP
+                </button>
+              </div>
+            </div>
+          )}
+          {showProduct && (
+            <div className="space-y-1">
+              <label className="block text-[11px] text-slate-400">Product</label>
+              <select
+                className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                value={customProduct}
+                onChange={(e) => setCustomProduct(e.target.value)}
+              >
+                <option value="sportsbook">sportsbook</option>
+                <option value="casino">casino</option>
+                <option value="poker">poker</option>
+                <option value="virtuals">virtuals</option>
+              </select>
+            </div>
+          )}
+          {isSportsbook && (
             <>
               <div className="space-y-1">
                 <label className="block text-[11px] text-slate-400">Sport</label>
@@ -474,7 +518,7 @@ export default function SimulatorPage() {
               </div>
             </>
           )}
-          {customProduct === "casino" && (
+          {isCasino && (
             <>
               <div className="space-y-1">
                 <label className="block text-[11px] text-slate-400">
@@ -516,6 +560,51 @@ export default function SimulatorPage() {
             Run Custom Event
           </button>
         </div>
+      </Card>
+
+      <Card title="Event Payload Preview">
+        <pre className="max-h-64 overflow-auto rounded-md bg-slate-950 p-3 text-[11px] text-slate-100">
+          {JSON.stringify(
+            (() => {
+              const amount =
+                customAmount.trim().length > 0
+                  ? Number(customAmount.trim())
+                  : undefined;
+              const base: Record<string, unknown> = {
+                type: customType,
+              };
+              if (showAmount && typeof amount === "number" && !Number.isNaN(amount)) {
+                base.amount = amount;
+              }
+              if (showCurrency && customCurrency) {
+                base.currency = customCurrency;
+              }
+              if (showCountry && customCountry !== "Any") {
+                base.country = customCountry;
+              }
+              if (showDevice && customDevice !== "Any") {
+                base.device = customDevice;
+              }
+              if (showIp && customIp) {
+                base.ip = customIp;
+              }
+              if (showProduct) {
+                base.product = customProduct;
+                if (isSportsbook) {
+                  base.sport = customSport;
+                  base.marketType = customMarketType;
+                  base.betType = customBetType;
+                } else if (isCasino) {
+                  base.gameType = customGameType;
+                  base.provider = customProvider;
+                }
+              }
+              return base;
+            })(),
+            null,
+            2,
+          )}
+        </pre>
       </Card>
 
       <Card title="Player State Override">
