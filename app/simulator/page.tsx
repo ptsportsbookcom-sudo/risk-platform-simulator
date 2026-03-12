@@ -74,6 +74,12 @@ export default function SimulatorPage() {
   const { state, processSimulatorEvent } = useRiskEngine();
   const [lastResult, setLastResult] = useState<ProcessEventResult | null>(null);
   const [logRows, setLogRows] = useState<SimulatorLogRow[]>([]);
+  const [customType, setCustomType] = useState<EngineEventType>("deposit");
+  const [customAmount, setCustomAmount] = useState<string>("");
+  const [customCurrency, setCustomCurrency] = useState<string>("EUR");
+  const [customCountry, setCustomCountry] = useState<string>("UK");
+  const [customDevice, setCustomDevice] = useState<string>("desktop");
+  const [customIp, setCustomIp] = useState<string>(randomIp());
 
   function triggerEvent(button: ButtonConfig) {
     let amount: number | undefined;
@@ -149,6 +155,63 @@ export default function SimulatorPage() {
     setLastResult(result);
   }
 
+  function runCustomEvent() {
+    const amount =
+      customAmount.trim().length > 0 ? Number(customAmount.trim()) : undefined;
+
+    const uiEvent = {
+      id: `SIM-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      playerId: DEFAULT_PLAYER_ID,
+      type: customType,
+      amount,
+      currency: customCurrency || "EUR",
+      country: customCountry || "UK",
+      device: customDevice || "desktop",
+      ip: customIp || randomIp(),
+      timestamp: Date.now(),
+    };
+
+    const result = processSimulatorEvent({
+      playerId: uiEvent.playerId,
+      eventType: uiEvent.type,
+      amount: uiEvent.amount,
+      metadata: {
+        currency: uiEvent.currency,
+        country: uiEvent.country,
+        device: uiEvent.device,
+        ipAddress: uiEvent.ip,
+        simulatorEventId: uiEvent.id,
+        simulatorTimestamp: uiEvent.timestamp,
+      },
+    });
+
+    const engineEvents = result.state.events;
+    const engineLogEntry = engineEvents[engineEvents.length - 1];
+
+    if (engineLogEntry) {
+      const triggeredRules = result.triggeredRules.map((re) => {
+        const rule = result.state.rules.find((r) => r.id === re.ruleId);
+        return {
+          id: re.ruleId,
+          name: rule?.name ?? re.description,
+        };
+      });
+
+      const row: SimulatorLogRow = {
+        eventId: engineLogEntry.id,
+        eventType: engineLogEntry.eventType,
+        timestamp: engineLogEntry.timestamp,
+        triggeredRules,
+        actions: result.actions,
+        alertCreated: result.newAlerts.length > 0,
+      };
+
+      setLogRows((prev) => [row, ...prev]);
+    }
+
+    setLastResult(result);
+  }
+
   function renderButtons(groupTitle: string, buttons: ButtonConfig[]) {
     return (
       <Card title={groupTitle}>
@@ -184,6 +247,74 @@ export default function SimulatorPage() {
             : `${state.events.length} events in current run`}
         </Badge>
       </div>
+
+      <Card title="Custom Event Builder">
+        <div className="grid gap-3 text-xs md:grid-cols-3">
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Event Type</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customType}
+              onChange={(e) => setCustomType(e.target.value as EngineEventType)}
+              placeholder="e.g. deposit"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Amount</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customAmount}
+              onChange={(e) => setCustomAmount(e.target.value)}
+              placeholder="e.g. 200"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Currency</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customCurrency}
+              onChange={(e) => setCustomCurrency(e.target.value)}
+              placeholder="e.g. EUR"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Country</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customCountry}
+              onChange={(e) => setCustomCountry(e.target.value)}
+              placeholder="e.g. UK"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Device</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customDevice}
+              onChange={(e) => setCustomDevice(e.target.value)}
+              placeholder="e.g. desktop"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">IP Address</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customIp}
+              onChange={(e) => setCustomIp(e.target.value)}
+              placeholder="e.g. 192.168.0.1"
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={runCustomEvent}
+            className="rounded-md border border-emerald-600 bg-emerald-600/10 px-3 py-1 text-[11px] text-emerald-100 hover:bg-emerald-600/20"
+          >
+            Run Custom Event
+          </button>
+        </div>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         {renderButtons("Player Events", playerEvents)}
