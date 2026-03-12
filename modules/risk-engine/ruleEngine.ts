@@ -39,7 +39,16 @@ export interface EngineEvent {
   eventType: EngineEventType;
   amount?: number;
   timestamp: string;
-  metadata?: Record<string, unknown>;
+  metadata?:
+    | (Record<string, unknown> & {
+        product?: "sportsbook" | "casino" | "poker" | "virtuals";
+        sport?: string;
+        marketType?: string;
+        betType?: string;
+        gameType?: string;
+        provider?: string;
+      })
+    | undefined;
 }
 
 export type AlertSeverity = "Low" | "Medium" | "High" | "Critical";
@@ -87,6 +96,30 @@ function conditionMatches(
   } else if (field === "event.ip" || field === "event.ipAddress") {
     left = (event.metadata ?? ({} as Record<string, unknown>))[
       "ipAddress" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.product") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "product" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.sport") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "sport" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.marketType") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "marketType" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.betType") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "betType" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.gameType") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "gameType" as keyof typeof event.metadata
+    ];
+  } else if (field === "event.provider") {
+    left = (event.metadata ?? ({} as Record<string, unknown>))[
+      "provider" as keyof typeof event.metadata
     ];
   } else if (field === "segments") {
     // Backwards-compatible alias for player segments

@@ -87,6 +87,12 @@ const CONDITION_FIELDS = [
   "event.device",
   "event.ip",
   "event.timestamp",
+  "event.product",
+  "event.sport",
+  "event.marketType",
+  "event.betType",
+  "event.gameType",
+  "event.provider",
   // player synthetic fields
   "player.depositCount24h",
   "player.withdrawalCount24h",
@@ -854,6 +860,14 @@ export default function RulesPage() {
                           <option value="event.ip">event.ip</option>
                           <option value="event.device">event.device</option>
                           <option value="event.timestamp">event.timestamp</option>
+                        </optgroup>
+                        <optgroup label="Event Context">
+                          <option value="event.product">event.product</option>
+                          <option value="event.sport">event.sport</option>
+                          <option value="event.marketType">event.marketType</option>
+                          <option value="event.betType">event.betType</option>
+                          <option value="event.gameType">event.gameType</option>
+                          <option value="event.provider">event.provider</option>
                         </optgroup>
                         <optgroup label="Player Metrics">
                           <option value="player.depositCount24h">

@@ -86,6 +86,12 @@ export default function SimulatorPage() {
   const [customCountry, setCustomCountry] = useState<string>("Any");
   const [customDevice, setCustomDevice] = useState<string>("Any");
   const [customIp, setCustomIp] = useState<string>(randomIp());
+  const [customProduct, setCustomProduct] = useState<string>("sportsbook");
+  const [customSport, setCustomSport] = useState<string>("football");
+  const [customMarketType, setCustomMarketType] = useState<string>("prematch");
+  const [customBetType, setCustomBetType] = useState<string>("single");
+  const [customGameType, setCustomGameType] = useState<string>("slot");
+  const [customProvider, setCustomProvider] = useState<string>("pragmatic");
   const [overrideSegment, setOverrideSegment] = useState<string>("none");
   const [overrideDepositCount, setOverrideDepositCount] = useState<string>("");
   const [overrideWithdrawalCount, setOverrideWithdrawalCount] =
@@ -136,6 +142,22 @@ export default function SimulatorPage() {
         country: uiEvent.country,
         device: uiEvent.device,
         ipAddress: uiEvent.ip,
+        ...(customProduct ? { product: customProduct } : {}),
+        ...(customProduct === "sportsbook" && customSport
+          ? { sport: customSport }
+          : {}),
+        ...(customProduct === "sportsbook" && customMarketType
+          ? { marketType: customMarketType }
+          : {}),
+        ...(customProduct === "sportsbook" && customBetType
+          ? { betType: customBetType }
+          : {}),
+        ...(customProduct === "casino" && customGameType
+          ? { gameType: customGameType }
+          : {}),
+        ...(customProduct === "casino" && customProvider
+          ? { provider: customProvider }
+          : {}),
         simulatorEventId: uiEvent.id,
         simulatorTimestamp: uiEvent.timestamp,
       },
@@ -399,6 +421,91 @@ export default function SimulatorPage() {
               </button>
             </div>
           </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Product</label>
+            <select
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customProduct}
+              onChange={(e) => setCustomProduct(e.target.value)}
+            >
+              <option value="sportsbook">sportsbook</option>
+              <option value="casino">casino</option>
+              <option value="poker">poker</option>
+              <option value="virtuals">virtuals</option>
+            </select>
+          </div>
+          {customProduct === "sportsbook" && (
+            <>
+              <div className="space-y-1">
+                <label className="block text-[11px] text-slate-400">Sport</label>
+                <select
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                  value={customSport}
+                  onChange={(e) => setCustomSport(e.target.value)}
+                >
+                  <option value="football">football</option>
+                  <option value="tennis">tennis</option>
+                  <option value="basketball">basketball</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] text-slate-400">
+                  Market Type
+                </label>
+                <select
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                  value={customMarketType}
+                  onChange={(e) => setCustomMarketType(e.target.value)}
+                >
+                  <option value="prematch">prematch</option>
+                  <option value="live">live</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] text-slate-400">Bet Type</label>
+                <select
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                  value={customBetType}
+                  onChange={(e) => setCustomBetType(e.target.value)}
+                >
+                  <option value="single">single</option>
+                  <option value="accumulator">accumulator</option>
+                </select>
+              </div>
+            </>
+          )}
+          {customProduct === "casino" && (
+            <>
+              <div className="space-y-1">
+                <label className="block text-[11px] text-slate-400">
+                  Game Type
+                </label>
+                <select
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                  value={customGameType}
+                  onChange={(e) => setCustomGameType(e.target.value)}
+                >
+                  <option value="slot">slot</option>
+                  <option value="table">table</option>
+                  <option value="live_casino">live_casino</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] text-slate-400">
+                  Provider
+                </label>
+                <select
+                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                  value={customProvider}
+                  onChange={(e) => setCustomProvider(e.target.value)}
+                >
+                  <option value="pragmatic">pragmatic</option>
+                  <option value="evolution">evolution</option>
+                  <option value="netent">netent</option>
+                </select>
+              </div>
+            </>
+          )}
         </div>
         <div className="mt-4 flex justify-end">
           <button
