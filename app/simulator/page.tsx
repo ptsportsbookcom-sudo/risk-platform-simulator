@@ -23,6 +23,7 @@ type SimulatorLogRow = {
   triggeredRules: { id: string; name: string }[];
   actions: RuleAction[];
   alertCreated: boolean;
+  caseCreated: boolean;
 };
 
 const DEFAULT_PLAYER_ID = "P-102938";
@@ -71,15 +72,27 @@ function formatActionType(type: RuleAction["type"]) {
 }
 
 export default function SimulatorPage() {
-  const { state, processSimulatorEvent } = useRiskEngine();
+  const {
+    state,
+    processSimulatorEvent,
+    updatePlayerStatus,
+    assignSegmentToPlayer,
+  } = useRiskEngine();
   const [lastResult, setLastResult] = useState<ProcessEventResult | null>(null);
   const [logRows, setLogRows] = useState<SimulatorLogRow[]>([]);
   const [customType, setCustomType] = useState<EngineEventType>("deposit");
   const [customAmount, setCustomAmount] = useState<string>("");
   const [customCurrency, setCustomCurrency] = useState<string>("EUR");
-  const [customCountry, setCustomCountry] = useState<string>("UK");
-  const [customDevice, setCustomDevice] = useState<string>("desktop");
+  const [customCountry, setCustomCountry] = useState<string>("Any");
+  const [customDevice, setCustomDevice] = useState<string>("Any");
   const [customIp, setCustomIp] = useState<string>(randomIp());
+  const [overrideSegment, setOverrideSegment] = useState<string>("none");
+  const [overrideDepositCount, setOverrideDepositCount] = useState<string>("");
+  const [overrideWithdrawalCount, setOverrideWithdrawalCount] =
+    useState<string>("");
+  const [overrideBetCount, setOverrideBetCount] = useState<string>("");
+  const [overrideDeviceCount, setOverrideDeviceCount] = useState<string>("");
+  const [overrideSessionCount, setOverrideSessionCount] = useState<string>("");
 
   function triggerEvent(button: ButtonConfig) {
     let amount: number | undefined;
@@ -147,6 +160,7 @@ export default function SimulatorPage() {
         triggeredRules,
         actions: result.actions,
         alertCreated: result.newAlerts.length > 0,
+        caseCreated: result.newCases.length > 0,
       };
 
       setLogRows((prev) => [row, ...prev]);
@@ -165,11 +179,55 @@ export default function SimulatorPage() {
       type: customType,
       amount,
       currency: customCurrency || "EUR",
-      country: customCountry || "UK",
-      device: customDevice || "desktop",
+      country: customCountry === "Any" ? undefined : customCountry,
+      device: customDevice === "Any" ? undefined : customDevice,
       ip: customIp || randomIp(),
       timestamp: Date.now(),
     };
+
+    const current = state.players[DEFAULT_PLAYER_ID];
+    if (current) {
+      const metricsPatch: Record<string, number> = {};
+      if (overrideDepositCount.trim()) {
+        metricsPatch.deposit_count_24h = Number(overrideDepositCount.trim());
+      }
+      if (overrideWithdrawalCount.trim()) {
+        metricsPatch.withdrawal_count_24h = Number(
+          overrideWithdrawalCount.trim(),
+        );
+      }
+      if (overrideBetCount.trim()) {
+        metricsPatch.bet_count = Number(overrideBetCount.trim());
+      }
+      if (overrideSessionCount.trim()) {
+        metricsPatch.session_count_30m = Number(overrideSessionCount.trim());
+      }
+      const deviceIds =
+        overrideDeviceCount.trim() && Number(overrideDeviceCount.trim()) > 0
+          ? Array.from(
+              { length: Number(overrideDeviceCount.trim()) },
+              (_, i) => `sim-device-${i + 1}`,
+            )
+          : current.deviceIds;
+
+      if (Object.keys(metricsPatch).length > 0) {
+        updatePlayerStatus(DEFAULT_PLAYER_ID, {
+          deviceIds,
+          metrics: {
+            ...(current.metrics ?? ({} as any)),
+            ...metricsPatch,
+          } as any,
+        });
+      } else {
+        updatePlayerStatus(DEFAULT_PLAYER_ID, {
+          deviceIds,
+        });
+      }
+
+      if (overrideSegment !== "none") {
+        assignSegmentToPlayer(DEFAULT_PLAYER_ID, overrideSegment);
+      }
+    }
 
     const result = processSimulatorEvent({
       playerId: uiEvent.playerId,
@@ -177,8 +235,8 @@ export default function SimulatorPage() {
       amount: uiEvent.amount,
       metadata: {
         currency: uiEvent.currency,
-        country: uiEvent.country,
-        device: uiEvent.device,
+        ...(uiEvent.country ? { country: uiEvent.country } : {}),
+        ...(uiEvent.device ? { device: uiEvent.device } : {}),
         ipAddress: uiEvent.ip,
         simulatorEventId: uiEvent.id,
         simulatorTimestamp: uiEvent.timestamp,
@@ -204,6 +262,7 @@ export default function SimulatorPage() {
         triggeredRules,
         actions: result.actions,
         alertCreated: result.newAlerts.length > 0,
+        caseCreated: result.newCases.length > 0,
       };
 
       setLogRows((prev) => [row, ...prev]);
@@ -279,39 +338,66 @@ export default function SimulatorPage() {
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">Currency</label>
-            <input
+            <select
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
               value={customCurrency}
               onChange={(e) => setCustomCurrency(e.target.value)}
-              placeholder="e.g. EUR"
-            />
+            >
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="USD">USD</option>
+              <option value="BTC">BTC</option>
+            </select>
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">Country</label>
-            <input
+            <select
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
               value={customCountry}
               onChange={(e) => setCustomCountry(e.target.value)}
-              placeholder="e.g. UK"
-            />
+            >
+              <option value="Any">Any</option>
+              <option value="UK">UK</option>
+              <option value="DE">DE</option>
+              <option value="FR">FR</option>
+              <option value="IT">IT</option>
+              <option value="ES">ES</option>
+              <option value="NL">NL</option>
+              <option value="US">US</option>
+            </select>
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">Device</label>
-            <input
+            <select
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
               value={customDevice}
               onChange={(e) => setCustomDevice(e.target.value)}
-              placeholder="e.g. desktop"
-            />
+            >
+              <option value="Any">Any</option>
+              <option value="desktop">desktop</option>
+              <option value="mobile">mobile</option>
+              <option value="tablet">tablet</option>
+              <option value="vpn">vpn</option>
+              <option value="bot">bot</option>
+            </select>
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">IP Address</label>
-            <input
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={customIp}
-              onChange={(e) => setCustomIp(e.target.value)}
-              placeholder="e.g. 192.168.0.1"
-            />
+            <div className="flex gap-2">
+              <input
+                className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                value={customIp}
+                onChange={(e) => setCustomIp(e.target.value)}
+                placeholder="e.g. 192.168.0.1"
+              />
+              <button
+                type="button"
+                onClick={() => setCustomIp(randomIp())}
+                className="whitespace-nowrap rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[10px] text-slate-100 hover:border-emerald-500"
+              >
+                Generate IP
+              </button>
+            </div>
           </div>
         </div>
         <div className="mt-4 flex justify-end">
@@ -322,6 +408,78 @@ export default function SimulatorPage() {
           >
             Run Custom Event
           </button>
+        </div>
+      </Card>
+
+      <Card title="Player State Override">
+        <div className="grid gap-3 text-xs md:grid-cols-3">
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Segment</label>
+            <select
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={overrideSegment}
+              onChange={(e) => setOverrideSegment(e.target.value)}
+            >
+              <option value="none">none</option>
+              <option value="vip">vip</option>
+              <option value="high_risk">high_risk</option>
+              <option value="bonus_abuser">bonus_abuser</option>
+              <option value="self_excluded">self_excluded</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Deposit Count
+            </label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={overrideDepositCount}
+              onChange={(e) => setOverrideDepositCount(e.target.value)}
+              placeholder="e.g. 5"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Withdrawal Count
+            </label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={overrideWithdrawalCount}
+              onChange={(e) => setOverrideWithdrawalCount(e.target.value)}
+              placeholder="e.g. 2"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Bet Count</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={overrideBetCount}
+              onChange={(e) => setOverrideBetCount(e.target.value)}
+              placeholder="e.g. 10"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Device Count
+            </label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={overrideDeviceCount}
+              onChange={(e) => setOverrideDeviceCount(e.target.value)}
+              placeholder="e.g. 3"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Session Count
+            </label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={overrideSessionCount}
+              onChange={(e) => setOverrideSessionCount(e.target.value)}
+              placeholder="e.g. 4"
+            />
+          </div>
         </div>
       </Card>
 
@@ -350,6 +508,7 @@ export default function SimulatorPage() {
                 <TH>Triggered Rules</TH>
                 <TH>Actions Executed</TH>
                 <TH>Alert Created</TH>
+                <TH>Case Created</TH>
               </TR>
             </THead>
             <TBody>
@@ -381,20 +540,15 @@ export default function SimulatorPage() {
                     )}
                   </TD>
                   <TD className="text-[11px] text-slate-400">
-                    {row.actions.length === 0 ? (
-                      "—"
-                    ) : (
-                      <div className="space-y-0.5">
-                        {row.actions.map((a, idx) => (
-                          <div key={`${row.eventId}-action-${idx}`}>
-                            {formatActionType(a.type)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {row.actions.length === 0
+                      ? "—"
+                      : row.actions.map((a) => formatActionType(a.type)).join(", ")}
                   </TD>
                   <TD className="text-[11px] text-slate-400">
                     {row.alertCreated ? "YES" : "—"}
+                  </TD>
+                  <TD className="text-[11px] text-slate-400">
+                    {row.caseCreated ? "YES" : "—"}
                   </TD>
                 </TR>
               ))}
