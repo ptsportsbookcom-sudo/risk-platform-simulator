@@ -252,12 +252,21 @@ export default function SimulatorPage() {
         <div className="grid gap-3 text-xs md:grid-cols-3">
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">Event Type</label>
-            <input
+            <select
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
               value={customType}
               onChange={(e) => setCustomType(e.target.value as EngineEventType)}
-              placeholder="e.g. deposit"
-            />
+            >
+              <option value="deposit">deposit</option>
+              <option value="withdraw">withdraw</option>
+              <option value="bet">bet</option>
+              <option value="login">login</option>
+              <option value="chargeback">chargeback</option>
+              <option value="bonus_claim">bonus_claim</option>
+              <option value="casino_session">casino_session</option>
+              <option value="kyc_failure">kyc_failure</option>
+              <option value="cdd_threshold_breach">cdd_threshold_breach</option>
+            </select>
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">Amount</label>
