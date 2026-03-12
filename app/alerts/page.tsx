@@ -6,8 +6,22 @@ import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 
-function renderMeta(value: unknown) {
-  if (value === null || value === undefined) return null;
+function formatActionType(type: string) {
+  const map: Record<string, string> = {
+    createAlert: "Create Alert",
+    createCase: "Create Case",
+    blockBet: "Block Bet",
+    blockDeposit: "Block Deposit",
+    blockWithdrawal: "Block Withdrawal",
+    freezeAccount: "Freeze Account",
+    requireKyc: "Require KYC",
+    assignSegment: "Assign Segment",
+  };
+  return map[type] ?? type;
+}
+
+function safeValue(value: unknown) {
+  if (value === null || value === undefined) return "-";
   return String(value);
 }
 
@@ -400,27 +414,75 @@ export default function AlertsPage() {
                         relatedEvent.amount != null && (
                           <div className="flex items-center justify-between">
                             <span className="text-slate-400">Amount</span>
-                            <span>{renderMeta(relatedEvent.amount)}</span>
+                            <span>{safeValue(relatedEvent.amount)}</span>
+                          </div>
+                        )}
+                      {meta.currency !== undefined &&
+                        meta.currency !== null && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Currency</span>
+                            <span>{safeValue(meta.currency)}</span>
                           </div>
                         )}
                       {meta.product !== undefined && meta.product !== null && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400">Product</span>
-                          <span>{renderMeta(meta.product)}</span>
+                          <span>{safeValue(meta.product)}</span>
+                        </div>
+                      )}
+                      {meta.provider !== undefined && meta.provider !== null && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Provider</span>
+                          <span>{safeValue(meta.provider)}</span>
+                        </div>
+                      )}
+                      {meta.sport !== undefined && meta.sport !== null && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Sport</span>
+                          <span>{safeValue(meta.sport)}</span>
+                        </div>
+                      )}
+                      {meta.marketType !== undefined &&
+                        meta.marketType !== null && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Market Type</span>
+                            <span>{safeValue(meta.marketType)}</span>
+                          </div>
+                        )}
+                      {meta.betType !== undefined && meta.betType !== null && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Bet Type</span>
+                          <span>{safeValue(meta.betType)}</span>
+                        </div>
+                      )}
+                      {meta.gameType !== undefined &&
+                        meta.gameType !== null && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Game Type</span>
+                            <span>{safeValue(meta.gameType)}</span>
+                          </div>
+                        )}
+                      {meta.country !== undefined && meta.country !== null && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Country</span>
+                          <span>{safeValue(meta.country)}</span>
                         </div>
                       )}
                       {meta.device !== undefined && meta.device !== null && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400">Device</span>
-                          <span>{renderMeta(meta.device)}</span>
+                          <span>{safeValue(meta.device)}</span>
                         </div>
                       )}
-                      {meta.country !== undefined && meta.country !== null && (
+                      {(meta.ipAddress !== undefined && meta.ipAddress !== null) ||
+                      (meta.ip !== undefined && meta.ip !== null) ? (
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Country</span>
-                          <span>{renderMeta(meta.country)}</span>
+                          <span className="text-slate-400">IP</span>
+                          <span>
+                            {safeValue(meta.ipAddress ?? meta.ip)}
+                          </span>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })()}
