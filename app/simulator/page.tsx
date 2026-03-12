@@ -1,10 +1,15 @@
-"use client";
+\"use client\";
 
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
-import { useRiskEngine } from "@/components/risk/RiskEngineContext";
-import type { EngineEventType } from "@/modules/risk-engine";
+import { useState } from \"react\";
+import { Card } from \"@/components/ui/Card\";
+import { Badge } from \"@/components/ui/Badge\";
+import { Table, THead, TBody, TH, TR, TD } from \"@/components/ui/Table\";
+import { useRiskEngine } from \"@/components/risk/RiskEngineContext\";
+import type {
+  EngineEventType,
+  ProcessEventResult,
+  RuleAction,
+} from \"@/modules/risk-engine\";
 
 type ButtonConfig = {
   label: string;
@@ -91,9 +96,16 @@ function formatEventType(type: EngineEventType) {
     .join(" ");
 }
 
+function formatActionType(type: RuleAction[\"type\"]) {
+  return type
+    .replace(/([a-z])([A-Z])/g, \"$1_$2\")
+    .toLowerCase();
+}
+
 export default function SimulatorPage() {
   const { state, processSimulatorEvent } = useRiskEngine();
   const events = state.events;
+  const [lastResult, setLastResult] = useState<ProcessEventResult | null>(null);
 
   function triggerEvent(button: ButtonConfig) {
     const metadata = buildSecurityMetadata(button.engineType);
@@ -105,12 +117,13 @@ export default function SimulatorPage() {
             button.engineType === "suspicious_bet"
           ? Math.floor(50 + Math.random() * 950)
           : undefined;
-    processSimulatorEvent({
+    const result = processSimulatorEvent({
       playerId: DEFAULT_PLAYER_ID,
       eventType: button.engineType,
       metadata,
       amount,
     });
+    setLastResult(result);
   }
 
   function renderButtons(groupTitle: string, buttons: ButtonConfig[]) {
@@ -195,6 +208,55 @@ export default function SimulatorPage() {
               ))}
             </TBody>
           </Table>
+        )}
+      </Card>
+
+      <Card
+        title="Triggered Rules"
+        description="Rule execution details for the most recent simulated event."
+      >
+        {!lastResult ? (
+          <p className="text-xs text-slate-400">
+            Trigger an event above to see which rules executed and what actions
+            they performed.
+          </p>
+        ) : lastResult.triggeredRules.length === 0 ? (
+          <p className="text-xs text-slate-400">
+            No rules were triggered for the last simulated event.
+          </p>
+        ) : (
+          <div className="space-y-4 text-xs">
+            {lastResult.triggeredRules.map((ruleEval, idx) => {
+              const actions = ruleEval.actions ?? [];
+              return (
+                <div
+                  key={`${ruleEval.ruleId}-${idx}`}
+                  className="rounded-md border border-slate-700 bg-slate-900/60 p-3"
+                >
+                  <div className="mb-1 font-medium text-slate-100">
+                    Rule: {ruleEval.description}
+                  </div>
+                  <div className="mb-1 text-[11px] text-slate-300">
+                    Severity: {(ruleEval.alertSeverity ?? \"Medium\").toLowerCase()}
+                  </div>
+                  <div className="text-[11px] text-slate-300">
+                    Actions:
+                    {actions.length === 0 ? (
+                      <span className="ml-1 text-slate-500">None</span>
+                    ) : (
+                      <ul className="mt-1 list-disc pl-5">
+                        {actions.map((action, i) => (
+                          <li key={`${ruleEval.ruleId}-action-${i}`}>
+                            {formatActionType(action.type)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </Card>
     </>
