@@ -103,20 +103,18 @@ export default function SimulatorPage() {
   const showAmount =
     customType === "deposit" ||
     customType === "withdraw" ||
-    (customType as string) === "bet";
+    customType === "place_bet";
   const showCurrency = showAmount;
   const showCountry =
     customType === "deposit" ||
     customType === "withdraw" ||
-    (customType as string) === "bet" ||
+    customType === "place_bet" ||
     customType === "login";
   const showDevice = showCountry;
   const showIp = showCountry;
-  const showProduct = (customType as string) === "bet";
-  const isSportsbook =
-    (customType as string) === "bet" && customProduct === "sportsbook";
-  const isCasino =
-    (customType as string) === "bet" && customProduct === "casino";
+  const showProduct = customType === "place_bet";
+  const isSportsbook = customType === "place_bet" && customProduct === "sportsbook";
+  const isCasino = customType === "place_bet" && customProduct === "casino";
 
   function triggerEvent(button: ButtonConfig) {
     let amount: number | undefined;
@@ -372,9 +370,10 @@ export default function SimulatorPage() {
             >
               <option value="deposit">deposit</option>
               <option value="withdraw">withdraw</option>
-              <option value="bet">bet</option>
+              <option value="place_bet">place_bet</option>
               <option value="login">login</option>
               <option value="chargeback">chargeback</option>
+              <option value="vpn_login">vpn_login</option>
               <option value="bonus_claim">bonus_claim</option>
               <option value="casino_session">casino_session</option>
               <option value="kyc_failure">kyc_failure</option>
