@@ -1,19 +1,28 @@
 "use client";
 
-import { useState } from \"react\";
-import { Card } from \"@/components/ui/Card\";
-import { Badge } from \"@/components/ui/Badge\";
-import { Table, THead, TBody, TH, TR, TD } from \"@/components/ui/Table\";
-import { useRiskEngine } from \"@/components/risk/RiskEngineContext\";
+import { useState } from "react";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
+import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 import type {
   EngineEventType,
   ProcessEventResult,
   RuleAction,
-} from \"@/modules/risk-engine\";
+} from "@/modules/risk-engine";
 
 type ButtonConfig = {
   label: string;
   engineType: EngineEventType;
+};
+
+type SimulatorLogRow = {
+  eventId: string;
+  eventType: EngineEventType;
+  timestamp: string;
+  triggeredRules: { id: string; name: string }[];
+  actions: RuleAction[];
+  alertCreated: boolean;
 };
 
 const DEFAULT_PLAYER_ID = "P-102938";
@@ -44,49 +53,8 @@ const complianceEvents: ButtonConfig[] = [
   { label: "CDD Threshold Breach", engineType: "cdd_threshold_breach" },
 ];
 
-const SAMPLE_COUNTRIES = ["UK", "DE", "SE", "FI", "NO", "IE", "NL"];
-const SAMPLE_DEVICES = ["iphone-12", "android-pixel-7", "macbook-pro", "ipad-air"];
-
-function randomChoice<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
 function randomIp() {
   return `${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
-}
-
-function buildSecurityMetadata(type: EngineEventType) {
-  if (
-    type === "login" ||
-    type === "vpn_login" ||
-    type === "multi_device_login"
-  ) {
-    const deviceId = randomChoice(SAMPLE_DEVICES);
-    const vpnDetected = type === "vpn_login";
-    return {
-      ipAddress: randomIp(),
-      country: randomChoice(SAMPLE_COUNTRIES),
-      deviceId,
-      vpnDetected,
-    };
-  }
-  if (
-    type === "place_bet" ||
-    type === "large_bet" ||
-    type === "suspicious_bet"
-  ) {
-    const deviceId = randomChoice(SAMPLE_DEVICES);
-    return {
-      ipAddress: randomIp(),
-      country: randomChoice(SAMPLE_COUNTRIES),
-      deviceId,
-      // simple sportsbook context
-      eventName: "Champions League Final",
-      market: "Match Winner",
-      odds: Number((1.5 + Math.random() * 3).toFixed(2)),
-    };
-  }
-  return undefined;
 }
 
 function formatEventType(type: EngineEventType) {
@@ -96,33 +64,88 @@ function formatEventType(type: EngineEventType) {
     .join(" ");
 }
 
-function formatActionType(type: RuleAction[\"type\"]) {
+function formatActionType(type: RuleAction["type"]) {
   return type
-    .replace(/([a-z])([A-Z])/g, \"$1_$2\")
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
     .toLowerCase();
 }
 
 export default function SimulatorPage() {
   const { state, processSimulatorEvent } = useRiskEngine();
-  const events = state.events;
   const [lastResult, setLastResult] = useState<ProcessEventResult | null>(null);
+  const [logRows, setLogRows] = useState<SimulatorLogRow[]>([]);
 
   function triggerEvent(button: ButtonConfig) {
-    const metadata = buildSecurityMetadata(button.engineType);
-    const amount =
-      button.engineType === "deposit"
-        ? Math.floor(500 + Math.random() * 2000)
-        : button.engineType === "place_bet" ||
-            button.engineType === "large_bet" ||
-            button.engineType === "suspicious_bet"
-          ? Math.floor(50 + Math.random() * 950)
-          : undefined;
-    const result = processSimulatorEvent({
+    let amount: number | undefined;
+    switch (button.engineType) {
+      case "deposit":
+        amount = 200;
+        break;
+      case "withdraw":
+        amount = 100;
+        break;
+      case "place_bet":
+        amount = 50;
+        break;
+      case "large_bet":
+        amount = 5000;
+        break;
+      default:
+        amount = undefined;
+        break;
+    }
+
+    const device = button.engineType === "vpn_login" ? "vpn" : "desktop";
+    const uiEvent = {
+      id: `SIM-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       playerId: DEFAULT_PLAYER_ID,
-      eventType: button.engineType,
-      metadata,
+      type: button.engineType,
       amount,
+      currency: "EUR" as const,
+      country: "UK" as const,
+      device,
+      ip: randomIp(),
+      timestamp: Date.now(),
+    };
+
+    const result = processSimulatorEvent({
+      playerId: uiEvent.playerId,
+      eventType: button.engineType,
+      amount: uiEvent.amount,
+      metadata: {
+        currency: uiEvent.currency,
+        country: uiEvent.country,
+        device: uiEvent.device,
+        ipAddress: uiEvent.ip,
+        simulatorEventId: uiEvent.id,
+        simulatorTimestamp: uiEvent.timestamp,
+      },
     });
+
+    const engineEvents = result.state.events;
+    const engineLogEntry = engineEvents[engineEvents.length - 1];
+
+    if (engineLogEntry) {
+      const triggeredRules = result.triggeredRules.map((re) => {
+        const rule = result.state.rules.find((r) => r.id === re.ruleId);
+        return {
+          id: re.ruleId,
+          name: rule?.name ?? re.description,
+        };
+      });
+
+      const row: SimulatorLogRow = {
+        eventId: engineLogEntry.id,
+        eventType: engineLogEntry.eventType,
+        timestamp: engineLogEntry.timestamp,
+        triggeredRules,
+        actions: result.actions,
+        alertCreated: result.newAlerts.length > 0,
+      };
+
+      setLogRows((prev) => [row, ...prev]);
+    }
+
     setLastResult(result);
   }
 
@@ -156,9 +179,9 @@ export default function SimulatorPage() {
           </p>
         </div>
         <Badge variant="outline">
-          {events.length === 0
+          {state.events.length === 0
             ? "No events yet"
-            : `${events.length} events in current run`}
+            : `${state.events.length} events in current run`}
         </Badge>
       </div>
 
@@ -173,7 +196,7 @@ export default function SimulatorPage() {
         title="Live Event Log"
         description="Chronological stream of simulator events and triggered rules."
       >
-        {events.length === 0 ? (
+        {logRows.length === 0 ? (
           <p className="text-xs text-slate-400">
             Trigger any event above to start populating the log.
           </p>
@@ -184,25 +207,54 @@ export default function SimulatorPage() {
                 <TH>Event ID</TH>
                 <TH>Type</TH>
                 <TH>Timestamp</TH>
-                <TH>Rules</TH>
+                <TH>Triggered Rules</TH>
+                <TH>Actions Executed</TH>
+                <TH>Alert Created</TH>
               </TR>
             </THead>
             <TBody>
-              {events.map((e) => (
-                <TR key={e.id}>
+              {logRows.map((row) => (
+                <TR key={row.eventId}>
                   <TD className="font-mono text-[11px] text-slate-300">
-                    {e.id}
+                    {row.eventId}
                   </TD>
                   <TD className="text-xs text-slate-100">
-                    {formatEventType(e.eventType)}
+                    {formatEventType(row.eventType)}
                   </TD>
                   <TD className="font-mono text-[11px] text-slate-400">
-                    {new Date(e.timestamp).toLocaleTimeString()}
+                    {new Date(row.timestamp).toLocaleTimeString()}
                   </TD>
                   <TD className="text-[11px] text-slate-400">
-                    {e.triggeredRules.length === 0
-                      ? "—"
-                      : e.triggeredRules.join(", ")}
+                    {row.triggeredRules.length === 0 ? (
+                      "—"
+                    ) : (
+                      <div className="space-y-0.5">
+                        {row.triggeredRules.map((r) => (
+                          <div key={r.id}>
+                            {r.name}{" "}
+                            <span className="font-mono text-[10px] text-slate-500">
+                              ({r.id})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TD>
+                  <TD className="text-[11px] text-slate-400">
+                    {row.actions.length === 0 ? (
+                      "—"
+                    ) : (
+                      <div className="space-y-0.5">
+                        {row.actions.map((a, idx) => (
+                          <div key={`${row.eventId}-action-${idx}`}>
+                            {formatActionType(a.type)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TD>
+                  <TD className="text-[11px] text-slate-400">
+                    {row.alertCreated ? "YES" : "—"}
                   </TD>
                 </TR>
               ))}
@@ -237,7 +289,7 @@ export default function SimulatorPage() {
                     Rule: {ruleEval.description}
                   </div>
                   <div className="mb-1 text-[11px] text-slate-300">
-                    Severity: {(ruleEval.alertSeverity ?? \"Medium\").toLowerCase()}
+                    Severity: {(ruleEval.alertSeverity ?? "Medium").toLowerCase()}
                   </div>
                   <div className="text-[11px] text-slate-300">
                     Actions:
