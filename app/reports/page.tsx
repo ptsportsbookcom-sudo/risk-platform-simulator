@@ -146,6 +146,39 @@ export default function ReportsPage() {
           <MetricTile label="High Risk Players" value={highRiskPlayers} />
           <MetricTile label="High Risk Bets" value={totalHighRiskBets} />
         </div>
+        <div className="mt-4 grid gap-3 text-[11px] sm:grid-cols-3">
+          <Link
+            href="/reports/rule-performance"
+            className="rounded-md border border-slate-800 bg-slate-900/70 px-3 py-2 hover:border-emerald-500/70 hover:bg-slate-900"
+          >
+            <div className="font-semibold text-slate-100">
+              Rule Performance
+            </div>
+            <div className="mt-0.5 text-[11px] text-slate-400">
+              View alert outcomes and fraud detection rates per rule.
+            </div>
+          </Link>
+          <Link
+            href="/reports/pending-kyc"
+            className="rounded-md border border-slate-800 bg-slate-900/70 px-3 py-2 hover:border-sky-500/70 hover:bg-slate-900"
+          >
+            <div className="font-semibold text-slate-100">Pending KYC</div>
+            <div className="mt-0.5 text-[11px] text-slate-400">
+              Review players with outstanding KYC requirements.
+            </div>
+          </Link>
+          <Link
+            href="/reports/negative-balance"
+            className="rounded-md border border-slate-800 bg-slate-900/70 px-3 py-2 hover:border-amber-500/70 hover:bg-slate-900"
+          >
+            <div className="font-semibold text-slate-100">
+              Negative Balances
+            </div>
+            <div className="mt-0.5 text-[11px] text-slate-400">
+              Monitor players with negative account balances.
+            </div>
+          </Link>
+        </div>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
