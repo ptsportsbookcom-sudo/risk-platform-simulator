@@ -142,7 +142,7 @@ export default function SimulatorPage() {
 
   function appendResultToLog(result: ProcessEventResult) {
     const engineEvents = result.state.events;
-    const engineLogEntry = engineEvents[engineEvents.length - 1];
+    const engineLogEntry = engineEvents[0];
 
     if (engineLogEntry) {
       const triggeredRules = result.triggeredRules.map((re) => {
