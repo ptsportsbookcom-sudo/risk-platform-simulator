@@ -5,13 +5,29 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
-import type { Segment } from "@/modules/segmentation/segmentTypes";
+import type {
+  Segment,
+  SegmentCondition,
+  SegmentMatchMode,
+  SegmentType,
+} from "@/modules/segmentation/segmentTypes";
+
+type SegmentConditionForm = {
+  field: string;
+  operator: SegmentCondition["operator"];
+  value: string;
+};
 
 type SegmentFormState = {
   id: string;
   name: string;
   description: string;
   domain: string;
+  type: SegmentType;
+  matchMode: SegmentMatchMode;
+  conditions: SegmentConditionForm[];
+  includePlayersText: string;
+  excludePlayersText: string;
 };
 
 const DOMAIN_OPTIONS = [
@@ -22,12 +38,44 @@ const DOMAIN_OPTIONS = [
   "responsible_gambling",
 ] as const;
 
+const CONDITION_FIELDS = [
+  "country",
+  "registration_date",
+  "tier_level",
+  "affiliate",
+  "agent",
+  "deposit_count",
+  "withdrawal_count",
+  "deposit_amount",
+  "withdrawal_amount",
+  "wallet_currency",
+  "deposit_method",
+  "withdrawal_method",
+  "language",
+  "asn",
+  "bonus_claim_count",
+  "bet_count",
+] as const;
+
+const CONDITION_OPERATORS: SegmentCondition["operator"][] = [
+  ">",
+  "<",
+  "=",
+  "in",
+  "not_in",
+];
+
 function createEmptyForm(): SegmentFormState {
   return {
     id: "",
     name: "",
     description: "",
     domain: "fraud_abuse",
+    type: "static",
+    matchMode: "all",
+    conditions: [],
+    includePlayersText: "",
+    excludePlayersText: "",
   };
 }
 
@@ -59,18 +107,59 @@ export default function SegmentsPage() {
       name: seg.name,
       description: seg.description ?? "",
       domain: seg.domain ?? "fraud_abuse",
+      type: seg.type ?? "static",
+      matchMode: seg.matchMode ?? "all",
+      conditions: (seg.conditions ?? []).map((c) => ({
+        field: c.field,
+        operator: c.operator,
+        value: Array.isArray(c.value) ? c.value.join(",") : String(c.value),
+      })),
+      includePlayersText: (seg.includePlayers ?? []).join(","),
+      excludePlayersText: (seg.excludePlayers ?? []).join(","),
     });
     setIsModalOpen(true);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const conditions: SegmentCondition[] = form.conditions.map((c) => {
+      const trimmed = c.value.trim();
+      let value: number | string | string[] = trimmed;
+      if (c.operator === "in" || c.operator === "not_in") {
+        value = trimmed
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean);
+      } else if (trimmed !== "" && !Number.isNaN(Number(trimmed))) {
+        value = Number(trimmed);
+      }
+      return {
+        field: c.field,
+        operator: c.operator,
+        value,
+      };
+    });
+
+    const includePlayers = form.includePlayersText
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    const excludePlayers = form.excludePlayersText
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
     const base: Segment = {
       id: form.id || form.name.trim().toLowerCase().replace(/\s+/g, "_"),
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       domain: form.domain || undefined,
       createdAt: Date.now(),
+      type: form.type,
+      matchMode: form.matchMode,
+      conditions: conditions.length > 0 ? conditions : undefined,
+      includePlayers: includePlayers.length > 0 ? includePlayers : undefined,
+      excludePlayers: excludePlayers.length > 0 ? excludePlayers : undefined,
     };
 
     if (editingId) {
@@ -78,6 +167,11 @@ export default function SegmentsPage() {
         name: base.name,
         description: base.description,
         domain: base.domain,
+        type: base.type,
+        matchMode: base.matchMode,
+        conditions: base.conditions,
+        includePlayers: base.includePlayers,
+        excludePlayers: base.excludePlayers,
       });
     } else {
       createSegment(base);
@@ -121,6 +215,7 @@ export default function SegmentsPage() {
               <TH>Name</TH>
               <TH>Description</TH>
               <TH>Domain</TH>
+              <TH>Type</TH>
               <TH>Players</TH>
               <TH>Created</TH>
               <TH>Actions</TH>
@@ -142,6 +237,11 @@ export default function SegmentsPage() {
                   </TD>
                   <TD className="text-[11px] text-slate-300">
                     <Badge variant="outline">{seg.domain ?? "—"}</Badge>
+                  </TD>
+                  <TD className="text-[11px] text-slate-300">
+                    <Badge variant="outline">
+                      {seg.type ?? "static"}
+                    </Badge>
                   </TD>
                   <TD className="text-xs text-slate-200">{count}</TD>
                   <TD className="text-[11px] text-slate-400">
@@ -242,6 +342,202 @@ export default function SegmentsPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="block text-slate-300">
+                    Segment Type
+                  </label>
+                  <select
+                    value={form.type}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        type: e.target.value as SegmentType,
+                      }))
+                    }
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  >
+                    <option value="static">Static (manual)</option>
+                    <option value="dynamic">Dynamic (condition-based)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-slate-300">
+                    Condition Logic
+                  </label>
+                  <select
+                    value={form.matchMode}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        matchMode: e.target.value as SegmentMatchMode,
+                      }))
+                    }
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                    disabled={form.type !== "dynamic"}
+                  >
+                    <option value="all">All conditions (AND)</option>
+                    <option value="any">Any condition (OR)</option>
+                  </select>
+                </div>
+              </div>
+
+              {form.type === "dynamic" && (
+                <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/70 p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-slate-200">
+                      Conditions
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          conditions: [
+                            ...f.conditions,
+                            {
+                              field: "country",
+                              operator: "=",
+                              value: "",
+                            },
+                          ],
+                        }))
+                      }
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
+                    >
+                      + Add Condition
+                    </button>
+                  </div>
+                  {form.conditions.length === 0 ? (
+                    <p className="text-[11px] text-slate-400">
+                      No conditions defined. This dynamic segment will not match
+                      any players until you add at least one condition.
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {form.conditions.map((cond, idx) => (
+                        <div
+                          key={idx}
+                          className="grid grid-cols-[1.3fr,1fr,1.7fr,auto] items-center gap-1"
+                        >
+                          <select
+                            value={cond.field}
+                            onChange={(e) =>
+                              setForm((f) => {
+                                const next = [...f.conditions];
+                                next[idx] = {
+                                  ...next[idx],
+                                  field: e.target.value,
+                                };
+                                return { ...f, conditions: next };
+                              })
+                            }
+                            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-100"
+                          >
+                            {CONDITION_FIELDS.map((field) => (
+                              <option key={field} value={field}>
+                                {field}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={cond.operator}
+                            onChange={(e) =>
+                              setForm((f) => {
+                                const next = [...f.conditions];
+                                next[idx] = {
+                                  ...next[idx],
+                                  operator: e.target
+                                    .value as SegmentCondition["operator"],
+                                };
+                                return { ...f, conditions: next };
+                              })
+                            }
+                            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-100"
+                          >
+                            {CONDITION_OPERATORS.map((op) => (
+                              <option key={op} value={op}>
+                                {op}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            value={cond.value}
+                            onChange={(e) =>
+                              setForm((f) => {
+                                const next = [...f.conditions];
+                                next[idx] = {
+                                  ...next[idx],
+                                  value: e.target.value,
+                                };
+                                return { ...f, conditions: next };
+                              })
+                            }
+                            placeholder={
+                              cond.operator === "in" ||
+                              cond.operator === "not_in"
+                                ? "Comma-separated values"
+                                : "Value"
+                            }
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-100"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                conditions: f.conditions.filter(
+                                  (_, i) => i !== idx,
+                                ),
+                              }))
+                            }
+                            className="ml-1 rounded-md border border-red-700 bg-red-900/40 px-2 py-0.5 text-[11px] text-red-200 hover:border-red-500 hover:bg-red-900/70"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="block text-slate-300">
+                    Manual Include Players
+                  </label>
+                  <textarea
+                    value={form.includePlayersText}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        includePlayersText: e.target.value,
+                      }))
+                    }
+                    rows={2}
+                    placeholder="Comma-separated player IDs to always include"
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-slate-300">
+                    Manual Exclude Players
+                  </label>
+                  <textarea
+                    value={form.excludePlayersText}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        excludePlayersText: e.target.value,
+                      }))
+                    }
+                    rows={2}
+                    placeholder="Comma-separated player IDs to always exclude"
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button

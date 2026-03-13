@@ -24,6 +24,7 @@ import { createDefaultAmlRules } from "@/modules/aml/amlRules";
 import { createDefaultRGRules } from "@/modules/rg/rgRules";
 import type { Rule } from "@/modules/risk-engine/ruleTypes";
 import type { Segment } from "@/modules/segmentation/segmentTypes";
+import { evaluateSegment } from "@/modules/segmentation/evaluateSegment";
 
 type RiskEngineAction =
   | { type: "COMMIT"; payload: { state: RiskEngineState; sequence: number } }
@@ -286,11 +287,54 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         const nextSeq = internal.sequence + 1;
         const engineEvent = buildEngineEventFromSimulator(nextSeq, input);
         const result = processEvent(internal.state, engineEvent);
+
+        // After processing the event, apply dynamic segment evaluation
+        // without modifying the core risk engine logic.
+        const updatedState = { ...result.state };
+        const playerId = input.playerId;
+        const player = updatedState.players[playerId];
+
+        if (player) {
+          const segments = updatedState.segments ?? [];
+          const baseSegments = new Set(player.segments ?? []);
+
+          for (const seg of segments) {
+            const include =
+              (seg.includePlayers ?? []).includes(playerId);
+            const exclude =
+              (seg.excludePlayers ?? []).includes(playerId);
+
+            let shouldHave = baseSegments.has(seg.id);
+
+            if (exclude) {
+              shouldHave = false;
+            } else if (include) {
+              shouldHave = true;
+            } else if (seg.type === "dynamic") {
+              shouldHave = evaluateSegment(player, seg);
+            }
+
+            if (shouldHave) {
+              baseSegments.add(seg.id);
+            } else {
+              baseSegments.delete(seg.id);
+            }
+          }
+
+          updatedState.players = {
+            ...updatedState.players,
+            [playerId]: {
+              ...player,
+              segments: Array.from(baseSegments),
+            },
+          };
+        }
+
         dispatch({
           type: "COMMIT",
-          payload: { state: result.state, sequence: nextSeq },
+          payload: { state: updatedState, sequence: nextSeq },
         });
-        return result;
+        return { ...result, state: updatedState };
       },
       updatePlayerStatus: (playerId: string, patch: Partial<PlayerRiskState>) =>
         dispatch({ type: "UPDATE_PLAYER", payload: { playerId, patch } }),
