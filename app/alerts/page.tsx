@@ -1,6 +1,7 @@
- "use client";
+"use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
@@ -38,6 +39,7 @@ const ANALYSTS = ["Risk Analyst 1", "Risk Analyst 2"] as const;
 export default function AlertsPage() {
   const { state, assignAlert, updateAlertStatus, escalateAlertToCase } =
     useRiskEngine();
+  const router = useRouter();
   const alerts = state.alerts;
 
   const [resolutionNoteDraft, setResolutionNoteDraft] = useState<string>("");
@@ -173,7 +175,16 @@ export default function AlertsPage() {
                       {a.id}
                     </TD>
                     <TD className="text-xs text-slate-200">
-                      {player ? `${player.name} (${a.playerId})` : a.playerId}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/players/${a.playerId}`);
+                        }}
+                        className="text-sky-300 hover:underline"
+                      >
+                        {player ? `${player.name} (${a.playerId})` : a.playerId}
+                      </button>
                     </TD>
                     <TD className="text-xs text-slate-100">
                       {state.rules.find((r) => r.id === a.ruleTriggered)?.name ??

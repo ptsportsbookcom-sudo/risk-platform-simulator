@@ -56,6 +56,25 @@ export default function PlayerDetailPage() {
     (b) => b.playerId === playerId,
   );
 
+  const totalDeposits = playerEvents
+    .filter((e) => e.eventType === "deposit")
+    .reduce((sum, e) => sum + (e.amount ?? 0), 0);
+  const totalWithdrawals = playerEvents
+    .filter((e) => e.eventType === "withdraw")
+    .reduce((sum, e) => sum + (e.amount ?? 0), 0);
+  const totalBets = playerEvents
+    .filter((e) =>
+      ["place_bet", "large_bet", "suspicious_bet"].includes(e.eventType),
+    )
+    .reduce((sum, e) => sum + (e.amount ?? 0), 0);
+  const bonusClaims = playerEvents.filter(
+    (e) => e.eventType === "bonus_claim",
+  ).length;
+
+  const accountAgeDays =
+    (Date.now() - new Date(player.registrationDate).getTime()) /
+    (1000 * 60 * 60 * 24);
+
   if (!player) {
     return (
       <div className="space-y-4">
@@ -146,6 +165,12 @@ export default function PlayerDetailPage() {
               <span>{player.country}</span>
             </div>
             <div className="flex items-center justify-between">
+              <span className="text-slate-400">Account Age</span>
+              <span className="text-slate-300">
+                {Math.max(0, Math.floor(accountAgeDays))} days
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-slate-400">Registration</span>
               <span className="font-mono text-[11px] text-slate-300">
                 {new Date(player.registrationDate).toLocaleDateString()}
@@ -195,6 +220,36 @@ export default function PlayerDetailPage() {
                 </div>
               </div>
             )}
+          </div>
+        </Card>
+
+        <Card
+          title="Financial Summary"
+          description="Aggregated financial activity from simulator events."
+        >
+          <div className="space-y-2 text-xs text-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Total Deposits</span>
+              <span className="font-semibold">
+                €{totalDeposits.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Total Withdrawals</span>
+              <span className="font-semibold">
+                €{totalWithdrawals.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Total Bets</span>
+              <span className="font-semibold">
+                €{totalBets.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Bonus Claims</span>
+              <span className="font-semibold">{bonusClaims}</span>
+            </div>
           </div>
         </Card>
 
@@ -477,13 +532,15 @@ export default function PlayerDetailPage() {
                     <TD>
                       <Badge
                         variant={
-                          a.status === "resolved" || a.status === "dismissed"
-                            ? "success"
-                            : a.status === "open"
-                              ? "warning"
-                              : a.status === "investigating"
-                                ? "outline"
-                                : "danger"
+                          a.status === "confirmed_fraud"
+                            ? "danger"
+                            : a.status === "false_positive"
+                              ? "outline"
+                              : a.status === "closed"
+                                ? "success"
+                                : a.status === "open"
+                                  ? "warning"
+                                  : "outline"
                         }
                       >
                         {a.status}
@@ -595,7 +652,7 @@ export default function PlayerDetailPage() {
                         <div className="flex flex-wrap gap-1">
                           <button
                             type="button"
-                            onClick={() => router.push("/cases")}
+                            onClick={() => router.push(`/cases/${c.id}`)}
                             className="rounded-md border border-sky-600 bg-sky-600/10 px-2 py-0.5 text-sky-200 hover:bg-sky-600/20"
                           >
                             Open
