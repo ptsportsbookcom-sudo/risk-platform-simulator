@@ -1,11 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/Table";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 
 export default function CasesPage() {
+  const router = useRouter();
   const { state } = useRiskEngine();
   const cases = state.cases;
 
@@ -39,7 +41,10 @@ export default function CasesPage() {
               const player = state.players[c.playerId];
               return (
                 <TR key={c.id}>
-                  <TD className="font-mono text-[11px] text-slate-300">
+                  <TD
+                    className="font-mono text-[11px] text-slate-300 cursor-pointer hover:text-emerald-300"
+                    onClick={() => router.push(`/cases/${c.id}`)}
+                  >
                     {c.id}
                   </TD>
                   <TD className="text-xs text-slate-200">
