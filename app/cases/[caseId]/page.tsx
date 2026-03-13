@@ -140,13 +140,17 @@ export default function CaseDetailsPage() {
   }
 
   function handleEscalate() {
-    if (linkedAlerts.length > 0) {
-      // Escalate the first linked alert to ensure integration with existing handler
-      escalateAlertToCase(linkedAlerts[0].id, `Escalated from case ${caseRecord.id}`);
-    }
+    if (!caseRecord) return;
+    if (linkedAlerts.length === 0) return;
+    // Escalate the first linked alert to ensure integration with existing handler
+    escalateAlertToCase(
+      linkedAlerts[0].id,
+      `Escalated from case ${caseRecord.id}`,
+    );
   }
 
   function handleCloseCase() {
+    if (!caseRecord) return;
     closeCase(caseRecord.id);
   }
 
