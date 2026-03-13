@@ -28,6 +28,22 @@ type SimulatorLogRow = {
 
 const DEFAULT_PLAYER_ID = "P-102938";
 
+type ScenarioStep = {
+  id: string;
+  name: string;
+  eventType: EngineEventType;
+  amount?: number;
+  metadata: Record<string, unknown>;
+};
+
+type SavedScenario = {
+  id: string;
+  name: string;
+  description?: string;
+  steps: ScenarioStep[];
+  lastRunAt?: string;
+};
+
 const playerEvents: ButtonConfig[] = [
   { label: "Create Player", engineType: "player_created" },
   { label: "Login", engineType: "login" },
@@ -99,6 +115,14 @@ export default function SimulatorPage() {
   const [overrideBetCount, setOverrideBetCount] = useState<string>("");
   const [overrideDeviceCount, setOverrideDeviceCount] = useState<string>("");
   const [overrideSessionCount, setOverrideSessionCount] = useState<string>("");
+  const [scenarioSteps, setScenarioSteps] = useState<ScenarioStep[]>([]);
+  const [scenarios, setScenarios] = useState<SavedScenario[]>([]);
+  const [scenarioName, setScenarioName] = useState<string>("");
+  const [scenarioDescription, setScenarioDescription] = useState<string>("");
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
+    null,
+  );
+  const [isRunningScenario, setIsRunningScenario] = useState<boolean>(false);
 
   const showAmount =
     customType === "deposit" ||
@@ -115,6 +139,33 @@ export default function SimulatorPage() {
   const showProduct = customType === "place_bet";
   const isSportsbook = customType === "place_bet" && customProduct === "sportsbook";
   const isCasino = customType === "place_bet" && customProduct === "casino";
+
+  function appendResultToLog(result: ProcessEventResult) {
+    const engineEvents = result.state.events;
+    const engineLogEntry = engineEvents[engineEvents.length - 1];
+
+    if (engineLogEntry) {
+      const triggeredRules = result.triggeredRules.map((re) => {
+        const rule = result.state.rules.find((r) => r.id === re.ruleId);
+        return {
+          id: re.ruleId,
+          name: rule?.name ?? re.description,
+        };
+      });
+
+      const row: SimulatorLogRow = {
+        eventId: engineLogEntry.id,
+        eventType: engineLogEntry.eventType,
+        timestamp: engineLogEntry.timestamp,
+        triggeredRules,
+        actions: result.actions,
+        alertCreated: result.newAlerts.length > 0,
+        caseCreated: result.newCases.length > 0,
+      };
+
+      setLogRows((prev) => [row, ...prev]);
+    }
+  }
 
   function triggerEvent(button: ButtonConfig) {
     let amount: number | undefined;
@@ -179,31 +230,7 @@ export default function SimulatorPage() {
       },
     });
 
-    const engineEvents = result.state.events;
-    const engineLogEntry = engineEvents[engineEvents.length - 1];
-
-    if (engineLogEntry) {
-      const triggeredRules = result.triggeredRules.map((re) => {
-        const rule = result.state.rules.find((r) => r.id === re.ruleId);
-        return {
-          id: re.ruleId,
-          name: rule?.name ?? re.description,
-        };
-      });
-
-      const row: SimulatorLogRow = {
-        eventId: engineLogEntry.id,
-        eventType: engineLogEntry.eventType,
-        timestamp: engineLogEntry.timestamp,
-        triggeredRules,
-        actions: result.actions,
-        alertCreated: result.newAlerts.length > 0,
-        caseCreated: result.newCases.length > 0,
-      };
-
-      setLogRows((prev) => [row, ...prev]);
-    }
-
+    appendResultToLog(result);
     setLastResult(result);
   }
 
@@ -295,32 +322,133 @@ export default function SimulatorPage() {
       },
     });
 
-    const engineEvents = result.state.events;
-    const engineLogEntry = engineEvents[engineEvents.length - 1];
+    appendResultToLog(result);
+    setLastResult(result);
+  }
 
-    if (engineLogEntry) {
-      const triggeredRules = result.triggeredRules.map((re) => {
-        const rule = result.state.rules.find((r) => r.id === re.ruleId);
-        return {
-          id: re.ruleId,
-          name: rule?.name ?? re.description,
-        };
-      });
+  function addScenarioStepFromCurrentCustom() {
+    const amount =
+      customAmount.trim().length > 0 ? Number(customAmount.trim()) : undefined;
 
-      const row: SimulatorLogRow = {
-        eventId: engineLogEntry.id,
-        eventType: engineLogEntry.eventType,
-        timestamp: engineLogEntry.timestamp,
-        triggeredRules,
-        actions: result.actions,
-        alertCreated: result.newAlerts.length > 0,
-        caseCreated: result.newCases.length > 0,
-      };
-
-      setLogRows((prev) => [row, ...prev]);
+    const metadata: Record<string, unknown> = {};
+    if (showCurrency && customCurrency) {
+      metadata.currency = customCurrency;
+    }
+    if (showCountry && customCountry !== "Any") {
+      metadata.country = customCountry;
+    }
+    if (showDevice && customDevice !== "Any") {
+      metadata.device = customDevice;
+    }
+    if (showIp && customIp) {
+      metadata.ipAddress = customIp;
+    }
+    if (showProduct) {
+      metadata.product = customProduct;
+      if (isSportsbook) {
+        metadata.sport = customSport;
+        metadata.marketType = customMarketType;
+        metadata.betType = customBetType;
+      } else if (isCasino) {
+        metadata.gameType = customGameType;
+        metadata.provider = customProvider;
+      }
     }
 
-    setLastResult(result);
+    const safeAmount =
+      showAmount && typeof amount === "number" && !Number.isNaN(amount)
+        ? amount
+        : undefined;
+
+    const nameParts = [customType];
+    if (safeAmount !== undefined) {
+      nameParts.push(`€${safeAmount}`);
+    }
+    if (showProduct) {
+      nameParts.push(customProduct);
+    }
+
+    const step: ScenarioStep = {
+      id: `SCSTEP-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: nameParts.join(" · "),
+      eventType: customType,
+      amount: safeAmount,
+      metadata,
+    };
+
+    setScenarioSteps((prev) => [...prev, step]);
+  }
+
+  function clearScenarioSteps() {
+    setScenarioSteps([]);
+  }
+
+  function saveScenario() {
+    if (!scenarioName.trim() || scenarioSteps.length === 0) return;
+
+    const id = `SCENARIO-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const scenario: SavedScenario = {
+      id,
+      name: scenarioName.trim(),
+      description: scenarioDescription.trim() || undefined,
+      steps: scenarioSteps,
+    };
+
+    setScenarios((prev) => [...prev, scenario]);
+    setSelectedScenarioId(id);
+  }
+
+  function loadScenario(id: string) {
+    const scenario = scenarios.find((s) => s.id === id);
+    if (!scenario) return;
+    setScenarioSteps(scenario.steps);
+    setScenarioName(scenario.name);
+    setScenarioDescription(scenario.description ?? "");
+    setSelectedScenarioId(id);
+  }
+
+  function deleteScenario(id: string) {
+    setScenarios((prev) => prev.filter((s) => s.id !== id));
+    if (selectedScenarioId === id) {
+      setSelectedScenarioId(null);
+    }
+  }
+
+  function runScenario(id: string) {
+    const scenario = scenarios.find((s) => s.id === id);
+    if (!scenario || scenario.steps.length === 0) return;
+
+    setIsRunningScenario(true);
+    try {
+      let last: ProcessEventResult | null = null;
+      for (const step of scenario.steps) {
+        const result = processSimulatorEvent({
+          playerId: DEFAULT_PLAYER_ID,
+          eventType: step.eventType,
+          amount: step.amount,
+          metadata: {
+            ...step.metadata,
+            simulatorScenarioId: scenario.id,
+            simulatorScenarioName: scenario.name,
+            simulatorScenarioStepId: step.id,
+          },
+        });
+        appendResultToLog(result);
+        last = result;
+      }
+
+      if (last) {
+        setLastResult(last);
+      }
+
+      setScenarios((prev) =>
+        prev.map((s) =>
+          s.id === scenario.id ? { ...s, lastRunAt: new Date().toISOString() } : s,
+        ),
+      );
+    } finally {
+      setIsRunningScenario(false);
+    }
   }
 
   function renderButtons(groupTitle: string, buttons: ButtonConfig[]) {
@@ -674,6 +802,197 @@ export default function SimulatorPage() {
               onChange={(e) => setOverrideSessionCount(e.target.value)}
               placeholder="e.g. 4"
             />
+          </div>
+        </div>
+      </Card>
+
+      <Card
+        title="Scenario Library"
+        description="Save and replay sequences of simulator events to test rule behavior."
+      >
+        <div className="grid gap-4 text-xs md:grid-cols-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[11px] font-semibold text-slate-200">
+                  Scenario Builder
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Capture the current custom event as a step and build a scenario.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={addScenarioStepFromCurrentCustom}
+                  className="rounded-md border border-emerald-600 bg-emerald-600/10 px-2 py-1 text-[11px] text-emerald-100 hover:bg-emerald-600/20"
+                >
+                  Add Step
+                </button>
+                {scenarioSteps.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearScenarioSteps}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-800"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {scenarioSteps.length === 0 ? (
+              <p className="text-[11px] text-slate-400">
+                No steps added yet. Configure a custom event above and click{" "}
+                <span className="font-mono">Add Step</span>.
+              </p>
+            ) : (
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>#</TH>
+                    <TH>Step</TH>
+                    <TH>Details</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {scenarioSteps.map((step, idx) => (
+                    <TR key={step.id}>
+                      <TD className="text-[11px] text-slate-400">{idx + 1}</TD>
+                      <TD className="text-[11px] text-slate-100">{step.name}</TD>
+                      <TD className="text-[11px] text-slate-400">
+                        {step.amount !== undefined ? `€${step.amount}` : "—"}
+                      </TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            )}
+
+            <div className="space-y-2 pt-2">
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-slate-400">
+                    Scenario Name
+                  </label>
+                  <input
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                    value={scenarioName}
+                    onChange={(e) => setScenarioName(e.target.value)}
+                    placeholder="e.g. VIP large bet with chargeback"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-slate-400">
+                    Description
+                  </label>
+                  <input
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                    value={scenarioDescription}
+                    onChange={(e) => setScenarioDescription(e.target.value)}
+                    placeholder="Optional scenario notes (e.g. fraud pattern)"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={saveScenario}
+                  disabled={!scenarioName.trim() || scenarioSteps.length === 0}
+                  className="rounded-md border border-emerald-600 bg-emerald-600/10 px-3 py-1 text-[11px] text-emerald-100 hover:bg-emerald-600/20 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-500"
+                >
+                  Save Scenario
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[11px] font-semibold text-slate-200">
+                  Saved Scenarios
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Replay scenarios to compare rule behavior between simulator runs.
+                </p>
+              </div>
+              <Badge variant="outline">{scenarios.length} saved</Badge>
+            </div>
+
+            {scenarios.length === 0 ? (
+              <p className="text-[11px] text-slate-400">
+                No scenarios saved yet. Build one on the left and save it.
+              </p>
+            ) : (
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Name</TH>
+                    <TH>Steps</TH>
+                    <TH>Last Run</TH>
+                    <TH>Actions</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {scenarios.map((scenario) => (
+                    <TR
+                      key={scenario.id}
+                      className={
+                        selectedScenarioId === scenario.id
+                          ? "bg-slate-900/60"
+                          : undefined
+                      }
+                    >
+                      <TD className="text-[11px] text-slate-100">
+                        <div className="flex flex-col">
+                          <span>{scenario.name}</span>
+                          {scenario.description && (
+                            <span className="text-[10px] text-slate-500">
+                              {scenario.description}
+                            </span>
+                          )}
+                        </div>
+                      </TD>
+                      <TD className="text-[11px] text-slate-200">
+                        {scenario.steps.length}
+                      </TD>
+                      <TD className="text-[11px] text-slate-400">
+                        {scenario.lastRunAt
+                          ? new Date(scenario.lastRunAt).toLocaleTimeString()
+                          : "—"}
+                      </TD>
+                      <TD className="text-[11px] text-slate-200">
+                        <div className="flex flex-wrap gap-1">
+                          <button
+                            type="button"
+                            onClick={() => loadScenario(scenario.id)}
+                            className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 hover:border-sky-500 hover:text-sky-200"
+                          >
+                            Load
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => runScenario(scenario.id)}
+                            disabled={isRunningScenario}
+                            className="rounded-md border border-emerald-600 bg-emerald-600/10 px-2 py-0.5 text-emerald-100 hover:bg-emerald-600/20 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-500"
+                          >
+                            Run
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteScenario(scenario.id)}
+                            className="rounded-md border border-red-700 bg-red-900/40 px-2 py-0.5 text-red-200 hover:border-red-500 hover:bg-red-900/70"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            )}
           </div>
         </div>
       </Card>
