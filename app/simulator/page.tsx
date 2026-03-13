@@ -360,9 +360,9 @@ export default function SimulatorPage() {
         ? amount
         : undefined;
 
-    const nameParts = [customType];
+    const nameParts: string[] = [customType];
     if (safeAmount !== undefined) {
-      nameParts.push(`€${safeAmount}`);
+      nameParts.push(`€${String(safeAmount)}`);
     }
     if (showProduct) {
       nameParts.push(customProduct);
