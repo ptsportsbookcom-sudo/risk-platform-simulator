@@ -130,6 +130,7 @@ export interface ProcessEventResult {
   actions: RuleAction[];
   reviewQueue?: ReviewQueue;
   reviewStatus?: "pending";
+  betBlocked?: boolean;
 }
 
 export type SimulatorEventInput = {
@@ -293,6 +294,7 @@ export function processEvent(
   const newHighRiskBets: HighRiskBet[] = [];
   const allActions: RuleAction[] = [];
   let reviewQueue: ReviewQueue | undefined;
+  let betBlocked = false;
   let cumulativePlayerUpdates: Partial<PlayerRiskState> = {};
 
   // Process rules: maintain backwards compatibility while supporting new actions
@@ -324,6 +326,9 @@ export function processEvent(
         };
         if (actionResult.reviewQueue && !reviewQueue) {
           reviewQueue = actionResult.reviewQueue;
+        }
+        if (actionResult.betBlocked) {
+          betBlocked = true;
         }
       } else {
         // Legacy path: create alert directly
@@ -374,6 +379,9 @@ export function processEvent(
       if (actionResult.reviewQueue && !reviewQueue) {
         reviewQueue = actionResult.reviewQueue;
       }
+      if (actionResult.betBlocked) {
+        betBlocked = true;
+      }
     }
 
     // Legacy createCase handling (if not already handled by actions)
@@ -401,12 +409,12 @@ export function processEvent(
     }
   }
 
-  // High-risk bet queue: any bet event that triggers at least one alert
+  // High-risk bet queue: only when explicitly routed to trading review
   if (
+    reviewQueue === "trading" &&
     (event.eventType === "place_bet" ||
       event.eventType === "large_bet" ||
-      event.eventType === "suspicious_bet") &&
-    ruleResults.some((r) => r.createAlert)
+      event.eventType === "suspicious_bet")
   ) {
     const meta = (event.metadata ?? {}) as {
       eventName?: string;
@@ -518,6 +526,7 @@ export function processEvent(
     actions: allActions,
     reviewQueue,
     reviewStatus: reviewQueue ? "pending" : undefined,
+    betBlocked,
   };
 }
 

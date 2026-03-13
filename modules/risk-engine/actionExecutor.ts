@@ -14,6 +14,7 @@ export interface ActionExecutionResult {
   recordedActions: RuleAction[];
   reviewQueue?: "trading" | "casino" | "kyc";
   reviewStatus?: "pending";
+  betBlocked?: boolean;
 }
 
 /**
@@ -36,6 +37,7 @@ export function executeActions(
     recordedActions: [],
     reviewQueue: undefined,
     reviewStatus: undefined,
+    betBlocked: false,
   };
 
   for (const action of actions) {
@@ -81,6 +83,7 @@ export function executeActions(
           ...result.playerUpdates.blockedActions,
           betting: true,
         };
+        result.betBlocked = true;
         break;
       }
 
