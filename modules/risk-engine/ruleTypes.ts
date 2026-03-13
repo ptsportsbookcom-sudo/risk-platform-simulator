@@ -102,7 +102,10 @@ export type RuleAction =
   | { type: "closeAccount" }
   | { type: "changeCategory"; value?: string }
   // workflow / queue routing
-  | { type: "sendToHighRiskReview" };
+  | { type: "sendToHighRiskReview" }
+  | { type: "sendToReviewTrading" }
+  | { type: "sendToReviewCasino" }
+  | { type: "sendToReviewKyc" };
 
 export interface Rule {
   id: string;

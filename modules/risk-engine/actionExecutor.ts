@@ -12,6 +12,8 @@ export interface ActionExecutionResult {
   cases: EngineCase[];
   playerUpdates: Partial<PlayerRiskState>;
   recordedActions: RuleAction[];
+  reviewQueue?: "trading" | "casino" | "kyc";
+  reviewStatus?: "pending";
 }
 
 /**
@@ -32,6 +34,8 @@ export function executeActions(
     cases: [],
     playerUpdates: {},
     recordedActions: [],
+    reviewQueue: undefined,
+    reviewStatus: undefined,
   };
 
   for (const action of actions) {
@@ -137,6 +141,24 @@ export function executeActions(
       case "sendToHighRiskReview": {
         // This action is logged but high-risk bet creation happens separately
         // in processEvent based on event type
+        break;
+      }
+
+      case "sendToReviewTrading": {
+        result.reviewQueue = "trading";
+        result.reviewStatus = "pending";
+        break;
+      }
+
+      case "sendToReviewCasino": {
+        result.reviewQueue = "casino";
+        result.reviewStatus = "pending";
+        break;
+      }
+
+      case "sendToReviewKyc": {
+        result.reviewQueue = "kyc";
+        result.reviewStatus = "pending";
         break;
       }
 

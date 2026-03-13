@@ -52,6 +52,21 @@ function summarizeActions(actions: Rule["actions"]) {
       parts.push("Freeze Account");
     } else if (type === "closeAccount" || type === "close_account") {
       parts.push("Close Account");
+    } else if (
+      type === "sendToReviewTrading" ||
+      type === "send_to_review_trading"
+    ) {
+      parts.push("Send to Trading Review");
+    } else if (
+      type === "sendToReviewCasino" ||
+      type === "send_to_review_casino"
+    ) {
+      parts.push("Send to Casino Review");
+    } else if (
+      type === "sendToReviewKyc" ||
+      type === "send_to_review_kyc"
+    ) {
+      parts.push("Send to KYC / CDD Review");
     }
   }
   return parts.join(", ");
@@ -331,6 +346,12 @@ export default function RulesPage() {
           return { type: "freezeAccount" };
         case "close_account":
           return { type: "closeAccount" };
+        case "send_to_review_trading":
+          return { type: "sendToReviewTrading" };
+        case "send_to_review_casino":
+          return { type: "sendToReviewCasino" };
+        case "send_to_review_kyc":
+          return { type: "sendToReviewKyc" };
         case "limit_stake":
           return {
             type: "limitStake",
@@ -499,6 +520,21 @@ export default function RulesPage() {
             return { type: "freeze_account", params: {} };
           case "closeAccount":
             return { type: "close_account", params: {} };
+          case "sendToReviewTrading":
+            return {
+              type: "send_to_review_trading",
+              params: {} as Record<string, unknown>,
+            };
+          case "sendToReviewCasino":
+            return {
+              type: "send_to_review_casino",
+              params: {} as Record<string, unknown>,
+            };
+          case "sendToReviewKyc":
+            return {
+              type: "send_to_review_kyc",
+              params: {} as Record<string, unknown>,
+            };
           case "limitStake":
             return {
               type: "limit_stake",
@@ -1013,6 +1049,15 @@ export default function RulesPage() {
                         <option value="freeze_account">freeze_account</option>
                         <option value="close_account">close_account</option>
                         <option value="move_cdd_tier">move_cdd_tier</option>
+                        <option value="send_to_review_trading">
+                          send_to_review_trading
+                        </option>
+                        <option value="send_to_review_casino">
+                          send_to_review_casino
+                        </option>
+                        <option value="send_to_review_kyc">
+                          send_to_review_kyc
+                        </option>
                       </select>
 
                       {action.type === "limit_stake" && (

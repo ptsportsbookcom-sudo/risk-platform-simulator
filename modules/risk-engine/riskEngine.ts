@@ -120,12 +120,16 @@ export interface AuditEntry {
 
 import type { RuleAction } from "./ruleTypes";
 
+export type ReviewQueue = "trading" | "casino" | "kyc";
+
 export interface ProcessEventResult {
   state: RiskEngineState;
   triggeredRules: RuleEvaluation[];
   newAlerts: EngineAlert[];
   newCases: EngineCase[];
   actions: RuleAction[];
+  reviewQueue?: ReviewQueue;
+  reviewStatus?: "pending";
 }
 
 export type SimulatorEventInput = {
@@ -288,6 +292,7 @@ export function processEvent(
   const assignedSegmentsFromRules: string[] = [];
   const newHighRiskBets: HighRiskBet[] = [];
   const allActions: RuleAction[] = [];
+  let reviewQueue: ReviewQueue | undefined;
   let cumulativePlayerUpdates: Partial<PlayerRiskState> = {};
 
   // Process rules: maintain backwards compatibility while supporting new actions
@@ -317,6 +322,9 @@ export function processEvent(
           ...cumulativePlayerUpdates,
           ...actionResult.playerUpdates,
         };
+        if (actionResult.reviewQueue && !reviewQueue) {
+          reviewQueue = actionResult.reviewQueue;
+        }
       } else {
         // Legacy path: create alert directly
         const alert: EngineAlert = {
@@ -363,6 +371,9 @@ export function processEvent(
         ...cumulativePlayerUpdates,
         ...actionResult.playerUpdates,
       };
+      if (actionResult.reviewQueue && !reviewQueue) {
+        reviewQueue = actionResult.reviewQueue;
+      }
     }
 
     // Legacy createCase handling (if not already handled by actions)
@@ -505,6 +516,8 @@ export function processEvent(
     newAlerts,
     newCases,
     actions: allActions,
+    reviewQueue,
+    reviewStatus: reviewQueue ? "pending" : undefined,
   };
 }
 
