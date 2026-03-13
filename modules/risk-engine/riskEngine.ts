@@ -26,8 +26,17 @@ export interface EngineAlert {
   severity: AlertSeverity;
   timestamp: string; // kept for backwards compatibility (event time)
   createdAt: string;
-  status: "open" | "investigating" | "resolved" | "dismissed" | "escalated";
+  status:
+    | "open"
+    | "investigating"
+    | "resolved"
+    | "dismissed"
+    | "escalated"
+    | "confirmed_fraud"
+    | "false_positive"
+    | "closed";
   assignedTo?: string | null;
+  resolutionNote?: string | null;
 }
 
 export interface EngineCase {

@@ -82,7 +82,16 @@ interface RiskEngineContextValue {
   assignAlert: (alertId: string, analyst: string | null) => void;
   updateAlertStatus: (
     alertId: string,
-    status: "open" | "investigating" | "resolved" | "dismissed" | "escalated",
+    status:
+      | "open"
+      | "investigating"
+      | "resolved"
+      | "dismissed"
+      | "escalated"
+      | "confirmed_fraud"
+      | "false_positive"
+      | "closed",
+    resolutionNote?: string,
   ) => void;
   escalateAlertToCase: (alertId: string, title?: string) => void;
   reset: () => void;
@@ -440,14 +449,22 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             sequence: internal.sequence,
           },
         }),
-      updateAlertStatus: (alertId, status) =>
+      updateAlertStatus: (alertId, status, resolutionNote) =>
         dispatch({
           type: "COMMIT",
           payload: {
             state: {
               ...internal.state,
               alerts: internal.state.alerts.map((a) =>
-                a.id === alertId ? { ...a, status } : a,
+                a.id === alertId
+                  ? {
+                      ...a,
+                      status,
+                      ...(resolutionNote !== undefined
+                        ? { resolutionNote }
+                        : {}),
+                    }
+                  : a,
               ),
             },
             sequence: internal.sequence,

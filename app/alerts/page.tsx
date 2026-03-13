@@ -28,9 +28,9 @@ function safeValue(value: unknown) {
 const STATUSES = [
   "open",
   "investigating",
-  "resolved",
-  "dismissed",
-  "escalated",
+  "confirmed_fraud",
+  "false_positive",
+  "closed",
 ] as const;
 
 const ANALYSTS = ["Risk Analyst 1", "Risk Analyst 2"] as const;
@@ -39,6 +39,8 @@ export default function AlertsPage() {
   const { state, assignAlert, updateAlertStatus, escalateAlertToCase } =
     useRiskEngine();
   const alerts = state.alerts;
+
+  const [resolutionNoteDraft, setResolutionNoteDraft] = useState<string>("");
 
   const [statusFilter, setStatusFilter] = useState<"all" | (typeof STATUSES)[number]>("all");
   const [severityFilter, setSeverityFilter] = useState<"all" | "Critical" | "High" | "Medium" | "Low">("all");
@@ -66,6 +68,13 @@ export default function AlertsPage() {
     () => alerts.find((a) => a.id === selectedAlertId) ?? null,
     [alerts, selectedAlertId],
   );
+
+  // Keep local resolution note draft in sync with selected alert
+  if (selectedAlert && resolutionNoteDraft === "" && selectedAlert.resolutionNote) {
+    // Initialize lazily to avoid useEffect for simplicity
+    // eslint-disable-next-line no-console
+    setResolutionNoteDraft(selectedAlert.resolutionNote);
+  }
 
   return (
     <>
@@ -184,19 +193,30 @@ export default function AlertsPage() {
                       </Badge>
                     </TD>
                     <TD>
-                      <Badge
-                        variant={
-                          a.status === "resolved" || a.status === "dismissed"
-                            ? "success"
-                            : a.status === "open"
-                              ? "warning"
-                              : a.status === "investigating"
-                                ? "outline"
-                                : "danger"
-                        }
+                      <select
+                        value={a.status}
+                        onChange={(e) => {
+                          const newStatus = e.target
+                            .value as (typeof STATUSES)[number];
+                          // For outcome statuses, include the current resolution note draft
+                          if (
+                            newStatus === "confirmed_fraud" ||
+                            newStatus === "false_positive" ||
+                            newStatus === "closed"
+                          ) {
+                            updateAlertStatus(a.id, newStatus, resolutionNoteDraft);
+                          } else {
+                            updateAlertStatus(a.id, newStatus);
+                          }
+                        }}
+                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-100"
                       >
-                        {a.status}
-                      </Badge>
+                        {STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
                     </TD>
                     <TD className="text-[11px] text-slate-200">
                       {a.assignedTo ?? "Unassigned"}
@@ -229,7 +249,7 @@ export default function AlertsPage() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              updateAlertStatus(a.id, "investigating");
+                                updateAlertStatus(a.id, "investigating");
                             }}
                             className="rounded-md border border-sky-600 bg-sky-600/10 px-2 py-0.5 text-sky-200 hover:bg-sky-600/20"
                           >
@@ -242,7 +262,7 @@ export default function AlertsPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateAlertStatus(a.id, "resolved");
+                                updateAlertStatus(a.id, "confirmed_fraud");
                               }}
                               className="rounded-md border border-emerald-600 bg-emerald-600/10 px-2 py-0.5 text-emerald-200 hover:bg-emerald-600/20"
                             >
@@ -252,7 +272,7 @@ export default function AlertsPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateAlertStatus(a.id, "dismissed");
+                                updateAlertStatus(a.id, "false_positive");
                               }}
                               className="rounded-md border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-slate-200 hover:bg-slate-800"
                             >
@@ -341,14 +361,15 @@ export default function AlertsPage() {
                   <span className="text-slate-400">Status</span>
                   <Badge
                     variant={
-                      selectedAlert.status === "resolved" ||
-                      selectedAlert.status === "dismissed"
+                      selectedAlert.status === "confirmed_fraud"
+                        ? "danger"
+                        : selectedAlert.status === "false_positive"
+                        ? "outline"
+                        : selectedAlert.status === "closed"
                         ? "success"
                         : selectedAlert.status === "open"
-                          ? "warning"
-                          : selectedAlert.status === "investigating"
-                            ? "outline"
-                            : "danger"
+                        ? "warning"
+                        : "outline"
                     }
                   >
                     {selectedAlert.status}
@@ -586,6 +607,34 @@ export default function AlertsPage() {
                     </div>
                   );
                 })()}
+              </div>
+
+              {/* Resolution Note */}
+              <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <h3 className="text-[11px] font-semibold text-slate-100">
+                  Resolution Note
+                </h3>
+                <textarea
+                  className="h-20 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+                  placeholder="Add investigation outcome details..."
+                  value={resolutionNoteDraft}
+                  onChange={(e) => setResolutionNoteDraft(e.target.value)}
+                />
+                {selectedAlert.resolutionNote && (
+                  <div className="mt-1 text-[11px] text-slate-400">
+                    Last saved note:{" "}
+                    <span className="text-slate-200">
+                      {selectedAlert.resolutionNote}
+                    </span>
+                  </div>
+                )}
+                <p className="pt-1 text-[11px] text-slate-500">
+                  Resolution note is stored when status is set to{" "}
+                  <span className="font-mono">
+                    confirmed_fraud, false_positive, closed
+                  </span>
+                  .
+                </p>
               </div>
 
               <div className="pt-1 text-[11px] text-slate-400">
