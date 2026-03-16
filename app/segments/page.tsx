@@ -90,6 +90,7 @@ export default function SegmentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SegmentFormState>(createEmptyForm);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
 
   const segments = state.segments ?? [];
   const players = Object.values(state.players);
@@ -189,6 +190,63 @@ export default function SegmentsPage() {
     deleteSegment(id);
   }
 
+  const selectedSegment = segments.find((s) => s.id === selectedSegmentId) ?? null;
+
+  const segmentPlayers =
+    selectedSegment == null
+      ? []
+      : players.filter((p) => (p.segments ?? []).includes(selectedSegment.id));
+
+  const playerIdsInSegment = new Set(segmentPlayers.map((p) => p.playerId));
+
+  const playerCount = segmentPlayers.length;
+  const totalDeposit = segmentPlayers.reduce((sum, p) => {
+    const m = p.metrics as any;
+    return sum + ((m?.total_deposit_amount as number | undefined) ?? 0);
+  }, 0);
+  const totalWithdrawals = segmentPlayers.reduce((sum, p) => {
+    const m = p.metrics as any;
+    return sum + ((m?.total_withdrawal_amount as number | undefined) ?? 0);
+  }, 0);
+  const avgDeposit = playerCount > 0 ? totalDeposit / playerCount : 0;
+
+  const alertsForSegment = state.alerts.filter((a) =>
+    playerIdsInSegment.has(a.playerId),
+  );
+
+  const topRules = (() => {
+    const counts = new Map<
+      string,
+      { ruleId: string; ruleName: string; count: number }
+    >();
+    for (const alert of alertsForSegment) {
+      const ruleId = alert.ruleTriggered;
+      const existing = counts.get(ruleId);
+      const rule =
+        state.rules.find((r) => r.id === ruleId) ??
+        state.rules.find((r) => r.name === ruleId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        counts.set(ruleId, {
+          ruleId,
+          ruleName: rule?.name ?? ruleId,
+          count: 1,
+        });
+      }
+    }
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count).slice(0, 5);
+  })();
+
+  const recentAlerts = alertsForSegment
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt ?? b.timestamp).getTime() -
+        new Date(a.createdAt ?? a.timestamp).getTime(),
+    )
+    .slice(0, 5);
+
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
@@ -207,82 +265,223 @@ export default function SegmentsPage() {
         </button>
       </div>
 
-      <Card>
-        <Table>
-          <THead>
-            <TR>
-              <TH>ID</TH>
-              <TH>Name</TH>
-              <TH>Description</TH>
-              <TH>Domain</TH>
-              <TH>Type</TH>
-              <TH>Players</TH>
-              <TH>Created</TH>
-              <TH>Actions</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {segments.map((seg) => {
-              const count = players.filter((p) =>
-                (p.segments ?? []).includes(seg.id),
-              ).length;
-              return (
-                <TR key={seg.id}>
-                  <TD className="font-mono text-[11px] text-slate-400">
-                    {seg.id}
-                  </TD>
-                  <TD className="text-xs text-slate-100">{seg.name}</TD>
-                  <TD className="text-[11px] text-slate-300">
-                    {seg.description ?? "—"}
-                  </TD>
-                  <TD className="text-[11px] text-slate-300">
-                    <Badge variant="outline">{seg.domain ?? "—"}</Badge>
-                  </TD>
-                  <TD className="text-[11px] text-slate-300">
-                    <Badge variant="outline">
-                      {seg.type ?? "static"}
-                    </Badge>
-                  </TD>
-                  <TD className="text-xs text-slate-200">{count}</TD>
-                  <TD className="text-[11px] text-slate-400">
-                    {seg.createdAt
-                      ? new Date(seg.createdAt).toLocaleDateString()
-                      : "—"}
-                  </TD>
-                  <TD>
-                    <div className="flex gap-2 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(seg)}
-                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-slate-200 hover:border-sky-500/70 hover:text-sky-200"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(seg.id)}
-                        className="rounded-md border border-red-700 bg-red-900/40 px-2 py-0.5 text-red-200 hover:border-red-500 hover:bg-red-900/70"
-                      >
-                        Delete
-                      </button>
-                    </div>
+      <div className="grid gap-4 lg:grid-cols-[1.5fr_1.4fr]">
+        <Card>
+          <Table>
+            <THead>
+              <TR>
+                <TH>ID</TH>
+                <TH>Name</TH>
+                <TH>Description</TH>
+                <TH>Domain</TH>
+                <TH>Type</TH>
+                <TH>Players</TH>
+                <TH>Created</TH>
+                <TH>Actions</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {segments.map((seg) => {
+                const count = players.filter((p) =>
+                  (p.segments ?? []).includes(seg.id),
+                ).length;
+                const isSelected = selectedSegmentId === seg.id;
+                return (
+                  <TR
+                    key={seg.id}
+                    className={
+                      isSelected ? "bg-slate-900/60" : "hover:bg-slate-900/40"
+                    }
+                    onClick={() => setSelectedSegmentId(seg.id)}
+                  >
+                    <TD className="font-mono text-[11px] text-slate-400">
+                      {seg.id}
+                    </TD>
+                    <TD className="text-xs text-slate-100">{seg.name}</TD>
+                    <TD className="text-[11px] text-slate-300">
+                      {seg.description ?? "—"}
+                    </TD>
+                    <TD className="text-[11px] text-slate-300">
+                      <Badge variant="outline">{seg.domain ?? "—"}</Badge>
+                    </TD>
+                    <TD className="text-[11px] text-slate-300">
+                      <Badge variant="outline">
+                        {seg.type ?? "static"}
+                      </Badge>
+                    </TD>
+                    <TD className="text-xs text-slate-200">{count}</TD>
+                    <TD className="text-[11px] text-slate-400">
+                      {seg.createdAt
+                        ? new Date(seg.createdAt).toLocaleDateString()
+                        : "—"}
+                    </TD>
+                    <TD>
+                      <div className="flex gap-2 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(seg);
+                          }}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-slate-200 hover:border-sky-500/70 hover:text-sky-200"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(seg.id);
+                          }}
+                          className="rounded-md border border-red-700 bg-red-900/40 px-2 py-0.5 text-red-200 hover:border-red-500 hover:bg-red-900/70"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </TD>
+                  </TR>
+                );
+              })}
+              {segments.length === 0 && (
+                <TR>
+                  <TD
+                    colSpan={8}
+                    className="px-3 py-3 text-center text-xs text-slate-400"
+                  >
+                    No segments configured yet.
                   </TD>
                 </TR>
-              );
-            })}
-            {segments.length === 0 && (
-              <TR>
-                <TD
-                  colSpan={7}
-                  className="px-3 py-3 text-center text-xs text-slate-400"
-                >
-                  No segments configured yet.
-                </TD>
-              </TR>
-            )}
-          </TBody>
-        </Table>
-      </Card>
+              )}
+            </TBody>
+          </Table>
+        </Card>
+
+        <Card
+          title="Segment Explorer"
+          description={
+            selectedSegment
+              ? `Insights for segment ${selectedSegment.name}`
+              : "Select a segment to explore players and activity."
+          }
+        >
+          {!selectedSegment ? (
+            <p className="text-xs text-slate-400">
+              Click any segment in the table to see its players, financial
+              activity, and related alerts.
+            </p>
+          ) : (
+            <div className="space-y-4 text-xs text-slate-200">
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="text-[11px] text-slate-400">Players</div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-50">
+                    {playerCount}
+                  </div>
+                </div>
+                <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="text-[11px] text-slate-400">
+                    Avg Deposit (24h)
+                  </div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-50">
+                    €{avgDeposit.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="text-[11px] text-slate-400">
+                    Total Withdrawals (24h)
+                  </div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-50">
+                    €{totalWithdrawals.toLocaleString()}
+                  </div>
+                </div>
+                <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="text-[11px] text-slate-400">Alerts Generated</div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-50">
+                    {alertsForSegment.length}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-[11px] font-semibold text-slate-200">
+                  Top Triggered Rules
+                </div>
+                {topRules.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">
+                    No alerts have been generated for this segment yet.
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {topRules.map((r) => (
+                      <li
+                        key={r.ruleId}
+                        className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-1"
+                      >
+                        <span>
+                          {r.ruleName}{" "}
+                          <span className="font-mono text-[10px] text-slate-500">
+                            ({r.ruleId})
+                          </span>
+                        </span>
+                        <span className="font-mono text-[11px] text-slate-100">
+                          {r.count}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-[11px] font-semibold text-slate-200">
+                  Recent Alerts
+                </div>
+                {recentAlerts.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">
+                    No recent alerts for this segment.
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {recentAlerts.map((a) => {
+                      const player = state.players[a.playerId];
+                      const rule =
+                        state.rules.find((r) => r.id === a.ruleTriggered) ??
+                        state.rules.find((r) => r.name === a.ruleTriggered);
+                      return (
+                        <div
+                          key={a.id}
+                          className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-[11px] text-slate-300">
+                              {a.id}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {new Date(
+                                a.createdAt ?? a.timestamp,
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-slate-200">
+                            {(player?.name ?? a.playerId) || a.playerId}
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            Rule:{" "}
+                            {rule?.name ?? a.ruleTriggered}
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            Severity: {a.severity}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/80">
