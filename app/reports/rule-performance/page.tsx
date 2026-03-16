@@ -10,6 +10,7 @@ export default function RulePerformanceReportPage() {
   const { state } = useRiskEngine();
   const alerts = state.alerts ?? [];
   const rules = state.rules ?? [];
+   const cases = state.cases ?? [];
 
   const rows = useMemo(() => {
     const byRule = new Map<
@@ -17,13 +18,16 @@ export default function RulePerformanceReportPage() {
       {
         ruleId: string;
         ruleName: string;
-        totalAlerts: number;
-        confirmedFraud: number;
-        falsePositives: number;
-        investigating: number;
-        openAlerts: number;
+        alerts: number;
+        resolvedAlerts: number;
+        cases: number;
       }
     >();
+
+    const alertsById = new Map<string, (typeof alerts)[number]>();
+    for (const alert of alerts) {
+      alertsById.set(alert.id, alert);
+    }
 
     for (const alert of alerts) {
       const ruleId = alert.ruleTriggered;
@@ -36,43 +40,54 @@ export default function RulePerformanceReportPage() {
         byRule.get(key) ?? ({
           ruleId,
           ruleName: rule?.name ?? ruleId,
-          totalAlerts: 0,
-          confirmedFraud: 0,
-          falsePositives: 0,
-          investigating: 0,
-          openAlerts: 0,
+          alerts: 0,
+          resolvedAlerts: 0,
+          cases: 0,
         } as const);
 
       const current = { ...existing };
-      current.totalAlerts += 1;
+      current.alerts += 1;
 
-      if (alert.status === "confirmed_fraud") {
-        current.confirmedFraud += 1;
-      } else if (alert.status === "false_positive") {
-        current.falsePositives += 1;
-      } else if (alert.status === "investigating") {
-        current.investigating += 1;
-      } else if (alert.status === "open") {
-        current.openAlerts += 1;
+      if (alert.status === "resolved") {
+        current.resolvedAlerts += 1;
       }
 
       byRule.set(key, current);
     }
 
+    // Attribute cases to rules via their linked alerts
+    for (const c of cases) {
+      const uniqueRuleIds = new Set<string>();
+      for (const alertId of c.alerts ?? []) {
+        const alert = alertsById.get(alertId);
+        if (!alert) continue;
+        uniqueRuleIds.add(alert.ruleTriggered);
+      }
+      for (const ruleId of uniqueRuleIds) {
+        const existing = byRule.get(ruleId);
+          if (!existing) continue;
+        byRule.set(ruleId, {
+          ...existing,
+          cases: existing.cases + 1,
+        });
+      }
+    }
+
     return Array.from(byRule.values()).sort(
-      (a, b) => b.totalAlerts - a.totalAlerts,
+      (a, b) => b.alerts - a.alerts,
     );
-  }, [alerts, rules]);
+  }, [alerts, rules, cases]);
 
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
         <div>
           <h1 className="text-lg font-semibold text-slate-50">
-            Rule Performance
+            Rule Performance Report
           </h1>
           <p className="text-xs text-slate-400">
-            Alert outcome analytics per rule based on current simulator state.
+            Aggregated alerts and cases per rule based on current simulator
+            state.
           </p>
         </div>
         <Badge variant="outline">
@@ -81,8 +96,8 @@ export default function RulePerformanceReportPage() {
       </div>
 
       <Card
-        title="Rule Alert Performance"
-        description="Counts of alerts and investigation outcomes per rule."
+        title="Rule Performance"
+        description="Alerts, cases, and resolved alerts per rule."
       >
         {rows.length === 0 ? (
           <p className="text-xs text-slate-400">
@@ -95,21 +110,12 @@ export default function RulePerformanceReportPage() {
               <TR>
                 <TH>Rule</TH>
                 <TH>Alerts</TH>
-                <TH>Fraud</TH>
-                <TH>False Pos</TH>
-                <TH>Open / Investigating</TH>
-                <TH>Detection Rate</TH>
+                <TH>Cases</TH>
+                <TH>Resolved Alerts</TH>
               </TR>
             </THead>
             <TBody>
               {rows.map((row) => {
-                const openInvestigating =
-                  row.openAlerts + row.investigating;
-                const detectionRate =
-                  row.totalAlerts > 0
-                    ? (row.confirmedFraud / row.totalAlerts) * 100
-                    : 0;
-
                 return (
                   <TR key={row.ruleId}>
                     <TD className="text-xs text-slate-100">
@@ -121,21 +127,13 @@ export default function RulePerformanceReportPage() {
                       </div>
                     </TD>
                     <TD className="text-[11px] text-slate-100">
-                      {row.totalAlerts}
-                    </TD>
-                    <TD className="text-[11px] text-emerald-300">
-                      {row.confirmedFraud}
-                    </TD>
-                    <TD className="text-[11px] text-slate-300">
-                      {row.falsePositives}
-                    </TD>
-                    <TD className="text-[11px] text-amber-200">
-                      {openInvestigating}
+                      {row.alerts}
                     </TD>
                     <TD className="text-[11px] text-slate-100">
-                      {row.totalAlerts === 0
-                        ? "—"
-                        : `${detectionRate.toFixed(1)}%`}
+                      {row.cases}
+                    </TD>
+                    <TD className="text-[11px] text-emerald-300">
+                      {row.resolvedAlerts}
                     </TD>
                   </TR>
                 );
