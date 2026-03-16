@@ -1,3 +1,5 @@
+"use client";
+
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
