@@ -327,6 +327,82 @@ export default function AlertsPage() {
             </p>
           ) : (
             <div className="space-y-4 text-xs text-slate-200">
+              {(() => {
+                const player = state.players[selectedAlert.playerId];
+                if (!player) return null;
+
+                const metrics = player.metrics as any;
+
+                const recentEvents = state.events
+                  .filter((e) => e.playerId === selectedAlert.playerId)
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      new Date(b.timestamp).getTime() -
+                      new Date(a.timestamp).getTime(),
+                  );
+
+                const lastLoginEvent = recentEvents.find(
+                  (e) => e.eventType === "login",
+                );
+                const lastLoginMeta = (lastLoginEvent?.metadata ??
+                  {}) as Record<string, unknown>;
+                const lastIp =
+                  (lastLoginMeta.ipAddress as string | undefined) ??
+                  (lastLoginMeta.ip as string | undefined);
+                const lastDevice = lastLoginMeta.device as string | undefined;
+
+                return (
+                  <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                    <h3 className="text-[11px] font-semibold text-slate-100">
+                      Recent Player Activity
+                    </h3>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Deposits (24h)</span>
+                        <span className="font-mono text-[11px] text-slate-100">
+                          €
+                          {(
+                            (metrics?.total_deposit_amount as number | undefined) ??
+                            0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Withdrawals (24h)</span>
+                        <span className="font-mono text-[11px] text-slate-100">
+                          €
+                          {(
+                            (metrics?.total_withdrawal_amount as
+                              | number
+                              | undefined) ?? 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Bets (24h)</span>
+                        <span className="font-mono text-[11px] text-slate-100">
+                          {(
+                            (metrics?.bet_count as number | undefined) ?? 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Last Login IP</span>
+                        <span className="font-mono text-[11px] text-slate-100">
+                          {lastLoginEvent && lastIp ? lastIp : "Unknown"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Last Device</span>
+                        <span className="font-mono text-[11px] text-slate-100">
+                          {lastLoginEvent && lastDevice ? lastDevice : "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Alert Summary */}
               <div className="space-y-2 rounded-md border border-slate-800 bg-slate-950/60 p-3">
                 <h3 className="text-[11px] font-semibold text-slate-100">
