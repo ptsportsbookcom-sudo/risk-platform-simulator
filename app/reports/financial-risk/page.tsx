@@ -253,11 +253,7 @@ export default function FinancialRiskReportPage() {
         product = "bonus";
       } else if (ev.eventType === "casino_session") {
         product = "casino";
-      } else if (
-        ev.eventType === "place_bet" ||
-        ev.eventType === "large_bet" ||
-        ev.eventType === "suspicious_bet"
-      ) {
+      } else if (ev.eventType === "place_bet") {
         product = "sportsbook";
       } else if (ev.eventType === "bonus_claim") {
         product = "bonus";
