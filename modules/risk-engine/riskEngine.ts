@@ -117,6 +117,10 @@ export interface RiskEngineState {
   rules: Rule[];
   segments: Segment[];
   auditLog: AuditEntry[];
+  // Lightweight sportsbook liability tracking
+  playerLiability?: Record<string, number>;
+  eventLiability?: Record<string, number>;
+  marketLiability?: Record<string, number>;
 }
 
 export interface AuditEntry {
@@ -195,6 +199,9 @@ export function createInitialState(): RiskEngineState {
     rules,
     segments,
     auditLog: [],
+    playerLiability: {},
+    eventLiability: {},
+    marketLiability: {},
   };
 }
 
@@ -280,6 +287,46 @@ export function processEvent(
   };
 
   const ruleResults = evaluateRules(event, snapshotForRules, state.rules ?? []);
+
+  // Lightweight sportsbook liability tracking for bet events
+  const metaForLiability = (event.metadata ?? {}) as {
+    eventId?: string;
+    eventName?: string;
+    marketId?: string;
+    market?: string;
+    odds?: number;
+  };
+  if (
+    event.eventType === "place_bet" ||
+    event.eventType === "large_bet" ||
+    event.eventType === "suspicious_bet"
+  ) {
+    const stake = event.amount ?? 0;
+    const odds = metaForLiability.odds ?? 1;
+    const potentialPayout = stake * odds;
+    const liability = potentialPayout - stake;
+
+    const eventKey =
+      metaForLiability.eventId ?? metaForLiability.eventName ?? "UNKNOWN_EVENT";
+    const marketKey =
+      metaForLiability.marketId ?? metaForLiability.market ?? "UNKNOWN_MARKET";
+
+    const playerLiability = { ...(state.playerLiability ?? {}) };
+    const eventLiability = { ...(state.eventLiability ?? {}) };
+    const marketLiability = { ...(state.marketLiability ?? {}) };
+
+    playerLiability[event.playerId] =
+      (playerLiability[event.playerId] ?? 0) + liability;
+    eventLiability[eventKey] = (eventLiability[eventKey] ?? 0) + liability;
+    marketLiability[marketKey] = (marketLiability[marketKey] ?? 0) + liability;
+
+    state = {
+      ...state,
+      playerLiability,
+      eventLiability,
+      marketLiability,
+    };
+  }
 
   const deviceFromEvent = (event.metadata as { deviceId?: unknown } | undefined)
     ?.deviceId;

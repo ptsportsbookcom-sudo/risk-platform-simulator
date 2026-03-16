@@ -188,6 +188,29 @@ export default function SimulatorPage() {
     }
 
     const device = button.engineType === "vpn_login" ? "vpn" : "desktop";
+    const isSportsBet =
+      button.engineType === "place_bet" ||
+      button.engineType === "large_bet" ||
+      button.engineType === "suspicious_bet";
+
+    const sportForMeta = isSportsBet ? customSport : undefined;
+    const marketTypeForMeta = isSportsBet ? customMarketType : undefined;
+    const eventName =
+      isSportsBet && sportForMeta
+        ? `SIM_${sportForMeta.toUpperCase()}_EVENT`
+        : undefined;
+    const marketName =
+      isSportsBet && marketTypeForMeta
+        ? `SIM_${marketTypeForMeta.toUpperCase()}_MARKET`
+        : undefined;
+    const odds =
+      button.engineType === "large_bet"
+        ? 5
+        : button.engineType === "suspicious_bet"
+          ? 10
+          : isSportsBet
+            ? 2
+            : undefined;
     const uiEvent = {
       id: `SIM-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       playerId: DEFAULT_PLAYER_ID,
@@ -210,6 +233,11 @@ export default function SimulatorPage() {
         device: uiEvent.device,
         ipAddress: uiEvent.ip,
         ...(customProduct ? { product: customProduct } : {}),
+        ...(isSportsBet && eventName ? { eventName } : {}),
+        ...(isSportsBet && marketName ? { market: marketName } : {}),
+        ...(isSportsBet && odds ? { odds } : {}),
+        ...(isSportsBet && eventName ? { eventId: eventName } : {}),
+        ...(isSportsBet && marketName ? { marketId: marketName } : {}),
         ...(customProduct === "sportsbook" && customSport
           ? { sport: customSport }
           : {}),
@@ -312,6 +340,15 @@ export default function SimulatorPage() {
         ...(uiEvent.device ? { device: uiEvent.device } : {}),
         ...(uiEvent.ip ? { ipAddress: uiEvent.ip } : {}),
         ...(uiEvent.product ? { product: uiEvent.product } : {}),
+        ...(isSportsbook
+          ? {
+              eventName: `SIM_${customSport.toUpperCase()}_EVENT`,
+              market: `SIM_${customMarketType.toUpperCase()}_MARKET`,
+              odds: 2,
+              eventId: `SIM_${customSport.toUpperCase()}_EVENT`,
+              marketId: `SIM_${customMarketType.toUpperCase()}_MARKET`,
+            }
+          : {}),
         ...(uiEvent.sport ? { sport: uiEvent.sport } : {}),
         ...(uiEvent.marketType ? { marketType: uiEvent.marketType } : {}),
         ...(uiEvent.betType ? { betType: uiEvent.betType } : {}),

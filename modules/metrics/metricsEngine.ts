@@ -13,6 +13,10 @@ export interface PlayerMetrics {
   bet_count: number;
   bet_count_1h: number;
   total_stake_amount: number;
+  // Liability metrics
+  player_liability: number;
+  event_liability: number;
+  market_liability: number;
   // Time-window metrics (counts)
   deposit_count_5m: number;
   deposit_count_10m: number;
@@ -53,6 +57,10 @@ export function emptyPlayerMetrics(): PlayerMetrics {
     bet_count: 0,
     bet_count_1h: 0,
     total_stake_amount: 0,
+    // liability
+    player_liability: 0,
+    event_liability: 0,
+    market_liability: 0,
     // windowed metrics
     deposit_count_5m: 0,
     deposit_count_10m: 0,
@@ -128,7 +136,14 @@ export function computePlayerMetrics(
       e.eventType === "suspicious_bet"
     ) {
       metrics.bet_count += 1;
-      metrics.total_stake_amount += e.amount ?? 0;
+      const stake = e.amount ?? 0;
+      metrics.total_stake_amount += stake;
+
+      const meta = (e.metadata ?? {}) as { odds?: number };
+      const odds = meta.odds ?? 1;
+      const potentialPayout = stake * odds;
+      const liability = potentialPayout - stake;
+      metrics.player_liability += liability;
 
       if (ageMs <= ONE_HOUR_MS) {
         metrics.bet_count_1h += 1;
@@ -184,6 +199,12 @@ export function computePlayerMetrics(
     metrics.total_payout_exposure_event = exposure.totalPayoutExposureEvent;
     metrics.total_payout_exposure_market = exposure.totalPayoutExposureMarket;
     metrics.net_exposure_event = exposure.netExposureEvent;
+
+    // Liability metrics for the current bet context
+    metrics.event_liability =
+      exposure.total_payout_exposure_event - exposure.total_stake_event;
+    metrics.market_liability =
+      exposure.total_payout_exposure_market - exposure.total_stake_market;
   }
 
   return metrics;
