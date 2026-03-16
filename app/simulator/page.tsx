@@ -1156,6 +1156,44 @@ export default function SimulatorPage() {
           </div>
         )}
       </Card>
+
+      <Card
+        title="Scenario Run Summary"
+        description="Aggregate impact of the current simulator run."
+      >
+        <div className="grid gap-2 text-xs md:grid-cols-2">
+          <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+            <span className="text-slate-400">Events Executed</span>
+            <span className="font-mono text-[11px] text-slate-100">
+              {state.events.length}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+            <span className="text-slate-400">Alerts Created</span>
+            <span className="font-mono text-[11px] text-slate-100">
+              {state.alerts.length}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+            <span className="text-slate-400">Cases Created</span>
+            <span className="font-mono text-[11px] text-slate-100">
+              {state.cases.length}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+            <span className="text-slate-400">High Risk Bets</span>
+            <span className="font-mono text-[11px] text-slate-100">
+              {state.highRiskBets.length}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2 md:col-span-2">
+            <span className="text-slate-400">Rules Triggered (Last Event)</span>
+            <span className="font-mono text-[11px] text-slate-100">
+              {lastResult ? lastResult.triggeredRules.length : 0}
+            </span>
+          </div>
+        </div>
+      </Card>
     </>
   );
 }
