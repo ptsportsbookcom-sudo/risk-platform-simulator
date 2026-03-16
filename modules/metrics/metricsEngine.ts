@@ -194,17 +194,17 @@ export function computePlayerMetrics(
 
     metrics.stake_amount = stake;
     metrics.possible_payout = possiblePayout;
-    metrics.total_stake_event = exposure.totalStakeEvent;
-    metrics.total_stake_market = exposure.totalStakeMarket;
-    metrics.total_payout_exposure_event = exposure.totalPayoutExposureEvent;
-    metrics.total_payout_exposure_market = exposure.totalPayoutExposureMarket;
-    metrics.net_exposure_event = exposure.netExposureEvent;
+    metrics.total_stake_event = exposure.event_stake_total;
+    metrics.total_stake_market = exposure.market_stake_total;
+    metrics.total_payout_exposure_event = exposure.event_payout_total;
+    metrics.total_payout_exposure_market = exposure.market_payout_total;
+    metrics.net_exposure_event = exposure.net_exposure_event;
 
     // Liability metrics for the current bet context
     metrics.event_liability =
-      exposure.total_payout_exposure_event - exposure.total_stake_event;
+      exposure.event_payout_total - exposure.event_stake_total;
     metrics.market_liability =
-      exposure.total_payout_exposure_market - exposure.total_stake_market;
+      exposure.market_payout_total - exposure.market_stake_total;
   }
 
   return metrics;

@@ -1,11 +1,11 @@
 import type { EngineEventLogEntry } from "../risk-engine/riskEngine";
 
 export interface SportsbookExposure {
-  totalStakeEvent: number;
-  totalStakeMarket: number;
-  totalPayoutExposureEvent: number;
-  totalPayoutExposureMarket: number;
-  netExposureEvent: number;
+  event_stake_total: number;
+  market_stake_total: number;
+  event_payout_total: number;
+  market_payout_total: number;
+  net_exposure_event: number;
 }
 
 export function calculateExposureForBet(
@@ -20,10 +20,10 @@ export function calculateExposureForBet(
   const currentEventName = betMeta.eventName ?? "UNKNOWN_EVENT";
   const currentMarket = betMeta.market ?? "UNKNOWN_MARKET";
 
-  let totalStakeEvent = 0;
-  let totalStakeMarket = 0;
-  let totalPayoutExposureEvent = 0;
-  let totalPayoutExposureMarket = 0;
+  let eventStakeTotal = 0;
+  let marketStakeTotal = 0;
+  let eventPayoutTotal = 0;
+  let marketPayoutTotal = 0;
 
   for (const e of allEvents) {
     if (e.eventType !== "place_bet" && e.eventType !== "large_bet" && e.eventType !== "suspicious_bet") {
@@ -42,21 +42,21 @@ export function calculateExposureForBet(
     const isSameMarket = (meta.market ?? "UNKNOWN_MARKET") === currentMarket;
 
     if (isSameEvent) {
-      totalStakeEvent += stake;
-      totalPayoutExposureEvent += payout;
+      eventStakeTotal += stake;
+      eventPayoutTotal += payout;
     }
     if (isSameMarket) {
-      totalStakeMarket += stake;
-      totalPayoutExposureMarket += payout;
+      marketStakeTotal += stake;
+      marketPayoutTotal += payout;
     }
   }
 
   return {
-    totalStakeEvent,
-    totalStakeMarket,
-    totalPayoutExposureEvent,
-    totalPayoutExposureMarket,
-    netExposureEvent: totalPayoutExposureEvent - totalStakeEvent,
+    event_stake_total: eventStakeTotal,
+    market_stake_total: marketStakeTotal,
+    event_payout_total: eventPayoutTotal,
+    market_payout_total: marketPayoutTotal,
+    net_exposure_event: eventPayoutTotal - eventStakeTotal,
   };
 }
 
