@@ -1,7 +1,23 @@
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { useRiskEngine } from "@/components/risk/RiskEngineContext";
 
 export default function SportsRiskPage() {
+  const { state } = useRiskEngine();
+
+  // Aggregate liability across all players using existing metrics
+  const players = Object.values(state.players ?? {});
+  let totalEventLiability = 0;
+  let totalMarketLiability = 0;
+
+  for (const p of players) {
+    const m = p.metrics as any;
+    if (m) {
+      totalEventLiability += m.event_liability ?? 0;
+      totalMarketLiability += m.market_liability ?? 0;
+    }
+  }
+
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
@@ -33,6 +49,25 @@ export default function SportsRiskPage() {
           <p className="mt-1 text-[11px] text-slate-400">
             Potential match-fixing or insider information signals.
           </p>
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card title="Sportsbook Liability">
+          <div className="space-y-2 text-xs text-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Event Liability</span>
+              <span className="font-semibold">
+                €{totalEventLiability.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Market Liability</span>
+              <span className="font-semibold">
+                €{totalMarketLiability.toLocaleString()}
+              </span>
+            </div>
+          </div>
         </Card>
       </div>
     </>
