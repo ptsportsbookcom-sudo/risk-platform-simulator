@@ -18,6 +18,7 @@ import { SegmentationEngine, updatePlayerSegments } from "../segmentation/segmen
 import { DEFAULT_SEGMENTS } from "../segmentation/segmentRegistry";
 import type { Segment } from "../segmentation/segmentTypes";
 import { executeActions } from "./actionExecutor";
+import { evaluateSegment } from "../segmentation/evaluateSegment";
 
 export interface EngineAlert {
   id: string;
@@ -189,6 +190,37 @@ export function createInitialState(): RiskEngineState {
   const rules: Rule[] = [];
   const segments: Segment[] = DEFAULT_SEGMENTS;
 
+  // Initial registration-time segmentation for seeded players
+  for (const [playerId, player] of Object.entries(players)) {
+    const baseSegments = new Set(player.segments ?? []);
+
+    for (const seg of segments) {
+      const include = (seg.includePlayers ?? []).includes(playerId);
+      const exclude = (seg.excludePlayers ?? []).includes(playerId);
+
+      let shouldHave = baseSegments.has(seg.id);
+
+      if (exclude) {
+        shouldHave = false;
+      } else if (include) {
+        shouldHave = true;
+      } else if (seg.type === "dynamic") {
+        shouldHave = evaluateSegment(player, seg);
+      }
+
+      if (shouldHave) {
+        baseSegments.add(seg.id);
+      } else {
+        baseSegments.delete(seg.id);
+      }
+    }
+
+    players[playerId] = {
+      ...player,
+      segments: Array.from(baseSegments),
+    };
+  }
+
   return {
     players,
     alerts: [],
@@ -219,26 +251,56 @@ export function processEvent(
 ): ProcessEventResult {
   const existingPlayer = state.players[event.playerId];
   const baselinePlayer: PlayerRiskState =
-    existingPlayer ?? {
-      playerId: event.playerId,
-      kycLevel: "KYC_0",
-      depositTimestamps: [],
-      deviceIds: [],
-      name: `Simulated Player ${event.playerId}`,
-      country: "XX",
-      kycStatus: "Not Started",
-      cddTier: "Standard",
-      lastActivity: event.timestamp,
-      balance: 0,
-      negativeBalance: false,
-      registrationDate: event.timestamp,
-      canDeposit: true,
-      canWithdraw: true,
-      isFrozen: false,
-      accountStatus: "Active",
-      segments: [],
-      blockedActions: {},
-    };
+    existingPlayer ??
+    (() => {
+      const base: PlayerRiskState = {
+        playerId: event.playerId,
+        kycLevel: "KYC_0",
+        depositTimestamps: [],
+        deviceIds: [],
+        name: `Simulated Player ${event.playerId}`,
+        country: "XX",
+        kycStatus: "Not Started",
+        cddTier: "Standard",
+        lastActivity: event.timestamp,
+        balance: 0,
+        negativeBalance: false,
+        registrationDate: event.timestamp,
+        canDeposit: true,
+        canWithdraw: true,
+        isFrozen: false,
+        accountStatus: "Active",
+        segments: [],
+        blockedActions: {},
+      };
+
+      const baseSegments = new Set(base.segments ?? []);
+      for (const seg of state.segments ?? []) {
+        const include = (seg.includePlayers ?? []).includes(event.playerId);
+        const exclude = (seg.excludePlayers ?? []).includes(event.playerId);
+
+        let shouldHave = baseSegments.has(seg.id);
+
+        if (exclude) {
+          shouldHave = false;
+        } else if (include) {
+          shouldHave = true;
+        } else if (seg.type === "dynamic") {
+          shouldHave = evaluateSegment(base, seg);
+        }
+
+        if (shouldHave) {
+          baseSegments.add(seg.id);
+        } else {
+          baseSegments.delete(seg.id);
+        }
+      }
+
+      return {
+        ...base,
+        segments: Array.from(baseSegments),
+      };
+    })();
 
   const player: PlayerRiskState =
     event.eventType === "deposit"
