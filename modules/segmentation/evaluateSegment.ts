@@ -122,7 +122,11 @@ export function evaluateSegment(
     return false;
   }
 
-  const matchMode = segment.matchMode ?? "all";
+  // Derive match mode from either the legacy matchMode ("all"/"any")
+  // or the new mode ("ALL"/"ANY") flag. Default is ALL.
+  const fromMode =
+    segment.mode === "ANY" ? "any" : segment.mode === "ALL" ? "all" : undefined;
+  const matchMode = fromMode ?? segment.matchMode ?? "all";
 
   if (matchMode === "all") {
     return conditions.every((c) => evaluateCondition(player, c));

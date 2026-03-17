@@ -19,6 +19,7 @@ export interface Segment {
   // New segmentation capabilities
   type?: SegmentType; // default: "static"
   matchMode?: SegmentMatchMode; // default: "all"
+  mode?: "ALL" | "ANY"; // optional alias for match mode
   conditions?: SegmentCondition[];
   includePlayers?: string[];
   excludePlayers?: string[];
