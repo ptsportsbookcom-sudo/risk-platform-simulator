@@ -38,6 +38,25 @@ export function DashboardClient() {
     (b) => b.status === "pending",
   ).length;
 
+  // Fraud pattern summary (by segment id)
+  const fraudSegments = [
+    { id: "bonus_abuser", label: "Bonus Abuse" },
+    { id: "vpn_user", label: "VPN User" },
+    { id: "multi_account", label: "Multi Account Risk" },
+    { id: "withdrawal_abuse", label: "Withdrawal Abuse" },
+  ] as const;
+
+  const countPlayersInSegment = (segmentId: string) =>
+    players.filter((p) => (p.segments ?? []).includes(segmentId)).length;
+
+  // Investigation KPIs
+  const totalAlerts = state.alerts.length;
+  const totalCases = state.cases.length;
+  const openCases = state.cases.filter((c) => c.status === "Open").length;
+  const closedCases = state.cases.filter((c) => c.status === "Closed").length;
+  const resolutionRate =
+    totalCases > 0 ? (closedCases / totalCases) * 100 : 0;
+
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
@@ -88,6 +107,90 @@ export function DashboardClient() {
               {formatNumber(pendingHighRiskBets)}
             </div>
             <Badge variant="outline">Sports &amp; Casino</Badge>
+          </div>
+        </Card>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        <Card
+          title="Fraud Patterns"
+          description="Counts of players in key fraud and abuse segments."
+        >
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 text-xs text-slate-200">
+            {fraudSegments.map((pattern) => (
+              <div
+                key={pattern.id}
+                className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
+              >
+                <div className="text-[11px] font-semibold text-slate-100">
+                  {pattern.label}
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-slate-400">Players</span>
+                  <span className="text-sm font-semibold text-slate-50">
+                    {formatNumber(countPlayersInSegment(pattern.id))}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card
+          title="Investigation Performance"
+          description="Snapshot of alert and case handling workload."
+        >
+          <div className="grid gap-3 md:grid-cols-3 text-xs text-slate-300">
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+              <div className="text-[11px] text-slate-400">Total Alerts</div>
+              <div className="mt-1 text-sm font-semibold text-slate-50">
+                {formatNumber(totalAlerts)}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+              <div className="text-[11px] text-slate-400">Open Alerts</div>
+              <div className="mt-1 text-sm font-semibold text-slate-50">
+                {formatNumber(openAlerts)}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+              <div className="text-[11px] text-slate-400">
+                Investigating Alerts
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-50">
+                {formatNumber(investigatingAlerts)}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+              <div className="text-[11px] text-slate-400">Total Cases</div>
+              <div className="mt-1 text-sm font-semibold text-slate-50">
+                {formatNumber(totalCases)}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+              <div className="text-[11px] text-slate-400">Open Cases</div>
+              <div className="mt-1 text-sm font-semibold text-slate-50">
+                {formatNumber(openCases)}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
+              <div className="text-[11px] text-slate-400">Closed Cases</div>
+              <div className="mt-1 text-sm font-semibold text-slate-50">
+                {formatNumber(closedCases)}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2 md:col-span-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] text-slate-400">
+                    Case Resolution Rate
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-50">
+                    {resolutionRate.toFixed(0)}%
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </Card>
       </div>
