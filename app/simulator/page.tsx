@@ -93,6 +93,7 @@ export default function SimulatorPage() {
     processSimulatorEvent,
     updatePlayerStatus,
     assignSegmentToPlayer,
+    createPlayer,
   } = useRiskEngine();
   const [lastResult, setLastResult] = useState<ProcessEventResult | null>(null);
   const [logRows, setLogRows] = useState<SimulatorLogRow[]>([]);
@@ -115,6 +116,8 @@ export default function SimulatorPage() {
   const [overrideBetCount, setOverrideBetCount] = useState<string>("");
   const [overrideDeviceCount, setOverrideDeviceCount] = useState<string>("");
   const [overrideSessionCount, setOverrideSessionCount] = useState<string>("");
+  const [customPlayerName, setCustomPlayerName] = useState<string>("");
+  const [customPlayerCountry, setCustomPlayerCountry] = useState<string>("");
   const [scenarioSteps, setScenarioSteps] = useState<ScenarioStep[]>([]);
   const [scenarios, setScenarios] = useState<SavedScenario[]>([]);
   const [scenarioName, setScenarioName] = useState<string>("");
@@ -363,6 +366,17 @@ export default function SimulatorPage() {
     setLastResult(result);
   }
 
+  function handleCreatePlayer() {
+    const id = createPlayer({
+      name: customPlayerName.trim() || undefined,
+      country: customPlayerCountry.trim() || undefined,
+    });
+    // eslint-disable-next-line no-console
+    console.log("Simulator created player", id);
+    setCustomPlayerName("");
+    setCustomPlayerCountry("");
+  }
+
   function addScenarioStepFromCurrentCustom() {
     const amount =
       customAmount.trim().length > 0 ? Number(customAmount.trim()) : undefined;
@@ -523,6 +537,46 @@ export default function SimulatorPage() {
             : `${state.events.length} events in current run`}
         </Badge>
       </div>
+
+      <Card title="Create Player">
+        <div className="grid gap-3 text-xs md:grid-cols-3">
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Name</label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customPlayerName}
+              onChange={(e) => setCustomPlayerName(e.target.value)}
+              placeholder="e.g. Test Player"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">Country</label>
+            <select
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={customPlayerCountry}
+              onChange={(e) => setCustomPlayerCountry(e.target.value)}
+            >
+              <option value="">Default (XX)</option>
+              <option value="UK">UK</option>
+              <option value="DE">DE</option>
+              <option value="FR">FR</option>
+              <option value="IT">IT</option>
+              <option value="ES">ES</option>
+              <option value="NL">NL</option>
+              <option value="US">US</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={handleCreatePlayer}
+            className="rounded-md border border-emerald-600 bg-emerald-600/10 px-3 py-1 text-[11px] text-emerald-100 hover:bg-emerald-600/20"
+          >
+            Create Player
+          </button>
+        </div>
+      </Card>
 
       <Card title="Custom Event Builder">
         <div className="grid gap-3 text-xs md:grid-cols-3">

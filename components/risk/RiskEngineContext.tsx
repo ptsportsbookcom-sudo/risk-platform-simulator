@@ -53,6 +53,7 @@ interface RiskEngineContextValue {
   state: RiskEngineState;
   sequence: number;
   processSimulatorEvent: (input: SimulatorEventInput) => ProcessEventResult;
+  createPlayer: (input: { name?: string; country?: string }) => string;
   updatePlayerStatus: (
     playerId: string,
     patch: Partial<PlayerRiskState>,
@@ -335,6 +336,80 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
           payload: { state: updatedState, sequence: nextSeq },
         });
         return { ...result, state: updatedState };
+      },
+      createPlayer: (input: { name?: string; country?: string }) => {
+        const id = `P-${Date.now().toString(36)}-${Math.random()
+          .toString(36)
+          .slice(2, 6)}`;
+
+        const base: PlayerRiskState = {
+          playerId: id,
+          kycLevel: "KYC_0",
+          depositTimestamps: [],
+          deviceIds: [],
+          name: input.name?.trim() || `Simulated Player ${id}`,
+          country: input.country?.trim() || "XX",
+          kycStatus: "Not Started",
+          cddTier: "Standard",
+          lastActivity: new Date().toISOString(),
+          balance: 0,
+          negativeBalance: false,
+          registrationDate: new Date().toISOString(),
+          canDeposit: true,
+          canWithdraw: true,
+          isFrozen: false,
+          accountStatus: "Active",
+          segments: [],
+          metrics: undefined,
+          blockedActions: {},
+        };
+
+        const segments = internal.state.segments ?? [];
+        const baseSegments = new Set(base.segments ?? []);
+
+        for (const seg of segments) {
+          const include = (seg.includePlayers ?? []).includes(id);
+          const exclude = (seg.excludePlayers ?? []).includes(id);
+
+          let shouldHave = baseSegments.has(seg.id);
+
+          if (exclude) {
+            shouldHave = false;
+          } else if (include) {
+            shouldHave = true;
+          } else if (seg.type === "dynamic") {
+            shouldHave = evaluateSegment(base, seg);
+          }
+
+          if (shouldHave) {
+            baseSegments.add(seg.id);
+          } else {
+            baseSegments.delete(seg.id);
+          }
+        }
+
+        const playerWithSegments: PlayerRiskState = {
+          ...base,
+          segments: Array.from(baseSegments),
+        };
+
+        const nextState: RiskEngineState = {
+          ...internal.state,
+          players: {
+            ...internal.state.players,
+            [id]: playerWithSegments,
+          },
+        };
+
+        dispatch({
+          type: "COMMIT",
+          payload: { state: nextState, sequence: internal.sequence },
+        });
+
+        // eslint-disable-next-line no-console
+        console.log("Created simulated player", id, playerWithSegments);
+
+        return id;
       },
       updatePlayerStatus: (playerId: string, patch: Partial<PlayerRiskState>) =>
         dispatch({ type: "UPDATE_PLAYER", payload: { playerId, patch } }),
