@@ -126,6 +126,16 @@ export default function SimulatorPage() {
     null,
   );
   const [isRunningScenario, setIsRunningScenario] = useState<boolean>(false);
+  const [expectedAlert, setExpectedAlert] = useState<"" | "yes" | "no">("");
+  const [expectedCase, setExpectedCase] = useState<"" | "yes" | "no">("");
+  const [expectedRule, setExpectedRule] = useState<string>("");
+  const [expectedSegment, setExpectedSegment] = useState<string>("");
+  const [validationResult, setValidationResult] = useState<{
+    alertMatch?: boolean;
+    caseMatch?: boolean;
+    ruleMatch?: boolean;
+    segmentMatch?: boolean;
+  }>({});
 
   const showAmount =
     customType === "deposit" ||
@@ -142,6 +152,58 @@ export default function SimulatorPage() {
   const showProduct = customType === "place_bet";
   const isSportsbook = customType === "place_bet" && customProduct === "sportsbook";
   const isCasino = customType === "place_bet" && customProduct === "casino";
+
+  function validateScenario(result: ProcessEventResult | null) {
+    if (!result) {
+      setValidationResult({});
+      return;
+    }
+
+    const actualAlertCreated = result.newAlerts.length > 0;
+    const actualCaseCreated = result.newCases.length > 0;
+
+    const alertMatch =
+      expectedAlert === ""
+        ? undefined
+        : expectedAlert === "yes"
+          ? actualAlertCreated
+          : !actualAlertCreated;
+
+    const caseMatch =
+      expectedCase === ""
+        ? undefined
+        : expectedCase === "yes"
+          ? actualCaseCreated
+          : !actualCaseCreated;
+
+    let ruleMatch: boolean | undefined;
+    const trimmedRule = expectedRule.trim();
+    if (trimmedRule.length > 0) {
+      const lower = trimmedRule.toLowerCase();
+      ruleMatch = result.triggeredRules.some((r) => {
+        if (r.ruleId.toLowerCase().includes(lower)) return true;
+        const desc = r.description?.toLowerCase() ?? "";
+        return desc.includes(lower);
+      });
+    }
+
+    let segmentMatch: boolean | undefined;
+    const trimmedSegment = expectedSegment.trim();
+    if (trimmedSegment.length > 0) {
+      const playerState = result.state.players[DEFAULT_PLAYER_ID];
+      const segments = playerState?.segments ?? [];
+      segmentMatch = segments.some((s) =>
+        s.toLowerCase().includes(trimmedSegment.toLowerCase()),
+      );
+    }
+
+    setValidationResult({
+      alertMatch,
+      caseMatch,
+      ruleMatch,
+      segmentMatch,
+    });
+  }
 
   function appendResultToLog(result: ProcessEventResult) {
     const engineEvents = result.state.events;
@@ -263,6 +325,7 @@ export default function SimulatorPage() {
 
     appendResultToLog(result);
     setLastResult(result);
+    validateScenario(result);
   }
 
   function runCustomEvent() {
@@ -364,6 +427,7 @@ export default function SimulatorPage() {
 
     appendResultToLog(result);
     setLastResult(result);
+    validateScenario(result);
   }
 
   function handleCreatePlayer() {
@@ -490,6 +554,7 @@ export default function SimulatorPage() {
 
       if (last) {
         setLastResult(last);
+        validateScenario(last);
       }
 
       setScenarios((prev) =>
@@ -575,6 +640,65 @@ export default function SimulatorPage() {
           >
             Create Player
           </button>
+        </div>
+      </Card>
+
+      <Card title="Expected Outcomes">
+        <div className="grid gap-3 text-xs md:grid-cols-4">
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Expected Alert Created
+            </label>
+            <select
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={expectedAlert}
+              onChange={(e) =>
+                setExpectedAlert(e.target.value as "" | "yes" | "no")
+              }
+            >
+              <option value="">Not set</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Expected Case Created
+            </label>
+            <select
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={expectedCase}
+              onChange={(e) =>
+                setExpectedCase(e.target.value as "" | "yes" | "no")
+              }
+            >
+              <option value="">Not set</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Expected Rule Triggered
+            </label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={expectedRule}
+              onChange={(e) => setExpectedRule(e.target.value)}
+              placeholder="Rule id or name fragment"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] text-slate-400">
+              Expected Segment Assigned
+            </label>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
+              value={expectedSegment}
+              onChange={(e) => setExpectedSegment(e.target.value)}
+              placeholder="Segment id (e.g. high_risk)"
+            />
+          </div>
         </div>
       </Card>
 
@@ -1247,6 +1371,93 @@ export default function SimulatorPage() {
             </span>
           </div>
         </div>
+      </Card>
+
+      <Card
+        title="Scenario Validation"
+        description="Comparison between expected outcomes and actual simulator results."
+      >
+        {!lastResult ? (
+          <p className="text-xs text-slate-400">
+            Define expected outcomes above and run a simulator event or scenario
+            to see validation results.
+          </p>
+        ) : (
+          <div className="grid gap-2 text-xs md:grid-cols-2">
+            <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+              <span className="text-slate-400">Alert Created</span>
+              <span
+                className={
+                  validationResult.alertMatch === undefined
+                    ? "font-mono text-[11px] text-slate-400"
+                    : validationResult.alertMatch
+                      ? "font-mono text-[11px] text-emerald-300"
+                      : "font-mono text-[11px] text-red-300"
+                }
+              >
+                {validationResult.alertMatch === undefined
+                  ? "Not set"
+                  : validationResult.alertMatch
+                    ? "PASS"
+                    : "FAIL"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+              <span className="text-slate-400">Case Created</span>
+              <span
+                className={
+                  validationResult.caseMatch === undefined
+                    ? "font-mono text-[11px] text-slate-400"
+                    : validationResult.caseMatch
+                      ? "font-mono text-[11px] text-emerald-300"
+                      : "font-mono text-[11px] text-red-300"
+                }
+              >
+                {validationResult.caseMatch === undefined
+                  ? "Not set"
+                  : validationResult.caseMatch
+                    ? "PASS"
+                    : "FAIL"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+              <span className="text-slate-400">Rule Triggered</span>
+              <span
+                className={
+                  validationResult.ruleMatch === undefined
+                    ? "font-mono text-[11px] text-slate-400"
+                    : validationResult.ruleMatch
+                      ? "font-mono text-[11px] text-emerald-300"
+                      : "font-mono text-[11px] text-red-300"
+                }
+              >
+                {validationResult.ruleMatch === undefined
+                  ? "Not set"
+                  : validationResult.ruleMatch
+                    ? "PASS"
+                    : "FAIL"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+              <span className="text-slate-400">Segment Assigned</span>
+              <span
+                className={
+                  validationResult.segmentMatch === undefined
+                    ? "font-mono text-[11px] text-slate-400"
+                    : validationResult.segmentMatch
+                      ? "font-mono text-[11px] text-emerald-300"
+                      : "font-mono text-[11px] text-red-300"
+                }
+              >
+                {validationResult.segmentMatch === undefined
+                  ? "Not set"
+                  : validationResult.segmentMatch
+                    ? "PASS"
+                    : "FAIL"}
+              </span>
+            </div>
+          </div>
+        )}
       </Card>
     </>
   );
