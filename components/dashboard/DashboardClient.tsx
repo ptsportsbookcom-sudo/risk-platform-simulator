@@ -38,6 +38,66 @@ export function DashboardClient() {
     (b) => b.status === "pending",
   ).length;
 
+  const alerts = state.alerts ?? [];
+  const cases = state.cases ?? [];
+
+  // Top triggered rules from alerts
+  const topRules = (() => {
+    const counts = new Map<
+      string,
+      { ruleId: string; ruleName: string; count: number }
+    >();
+    for (const alert of alerts) {
+      const ruleId = alert.ruleTriggered;
+      const existing = counts.get(ruleId);
+      const rule =
+        state.rules.find((r) => r.id === ruleId) ??
+        state.rules.find((r) => r.name === ruleId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        counts.set(ruleId, {
+          ruleId,
+          ruleName: rule?.name ?? ruleId,
+          count: 1,
+        });
+      }
+    }
+    return Array.from(counts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  })();
+
+  // Alert summary by severity and status
+  const alertSeverityCounts: Record<
+    "Critical" | "High" | "Medium" | "Low",
+    number
+  > = {
+    Critical: 0,
+    High: 0,
+    Medium: 0,
+    Low: 0,
+  };
+
+  const alertStatusCounts: Record<
+    "open" | "investigating" | "resolved" | "dismissed",
+    number
+  > = {
+    open: 0,
+    investigating: 0,
+    resolved: 0,
+    dismissed: 0,
+  };
+
+  for (const a of alerts) {
+    if (a.severity in alertSeverityCounts) {
+      alertSeverityCounts[a.severity as keyof typeof alertSeverityCounts] += 1;
+    }
+    if (a.status in alertStatusCounts) {
+      alertStatusCounts[a.status as keyof typeof alertStatusCounts] += 1;
+    }
+  }
+
   // Fraud pattern summary (by segment id)
   const fraudSegments = [
     { id: "bonus_abuser", label: "Bonus Abuse" },
@@ -50,10 +110,10 @@ export function DashboardClient() {
     players.filter((p) => (p.segments ?? []).includes(segmentId)).length;
 
   // Investigation KPIs
-  const totalAlerts = state.alerts.length;
-  const totalCases = state.cases.length;
-  const openCases = state.cases.filter((c) => c.status === "Open").length;
-  const closedCases = state.cases.filter((c) => c.status === "Closed").length;
+  const totalAlerts = alerts.length;
+  const totalCases = cases.length;
+  const openCases = cases.filter((c) => c.status === "Open").length;
+  const closedCases = cases.filter((c) => c.status === "Closed").length;
   const resolutionRate =
     totalCases > 0 ? (closedCases / totalCases) * 100 : 0;
 
@@ -81,6 +141,11 @@ export function DashboardClient() {
               Open / Investigating: {openAlerts} / {investigatingAlerts}
             </Badge>
           </div>
+          {alerts.length === 0 && (
+            <p className="mt-2 text-[11px] text-slate-500">
+              No alerts detected in the current simulation.
+            </p>
+          )}
         </Card>
 
         <Card title="High Risk Players" accent="amber">
@@ -99,6 +164,11 @@ export function DashboardClient() {
             </div>
             <Badge variant="success">Work queue</Badge>
           </div>
+          {cases.length === 0 && (
+            <p className="mt-2 text-[11px] text-slate-500">
+              No cases available in the current simulation.
+            </p>
+          )}
         </Card>
 
         <Card title="Pending High Risk Bets" accent="sky">
@@ -192,6 +262,112 @@ export function DashboardClient() {
               </div>
             </div>
           </div>
+        </Card>
+
+        <Card
+          title="Top Triggered Rules"
+          description="Rules generating the most alerts in the current run."
+        >
+          {topRules.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              No alerts generated yet. Use the simulator to exercise rules.
+            </p>
+          ) : (
+            <div className="space-y-1 text-xs text-slate-200">
+              {topRules.map((r) => (
+                <div
+                  key={r.ruleId}
+                  className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-1.5"
+                >
+                  <div>
+                    <div>{r.ruleName}</div>
+                    <div className="font-mono text-[10px] text-slate-500">
+                      {r.ruleId}
+                    </div>
+                  </div>
+                  <div className="font-mono text-[11px] text-slate-100">
+                    {formatNumber(r.count)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card
+          title="Alert Summary"
+          description="Counts of alerts by severity and investigation status."
+        >
+          {alerts.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              No alerts detected in the current simulation.
+            </p>
+          ) : (
+            <div className="grid gap-3 text-xs sm:grid-cols-2">
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold text-slate-200">
+                  By Severity
+                </div>
+                <div className="space-y-1 text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <span>Critical</span>
+                    <span className="font-mono">
+                      {formatNumber(alertSeverityCounts.Critical)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>High</span>
+                    <span className="font-mono">
+                      {formatNumber(alertSeverityCounts.High)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Medium</span>
+                    <span className="font-mono">
+                      {formatNumber(alertSeverityCounts.Medium)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Low</span>
+                    <span className="font-mono">
+                      {formatNumber(alertSeverityCounts.Low)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold text-slate-200">
+                  By Status
+                </div>
+                <div className="space-y-1 text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <span>Open</span>
+                    <span className="font-mono">
+                      {formatNumber(alertStatusCounts.open)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Investigating</span>
+                    <span className="font-mono">
+                      {formatNumber(alertStatusCounts.investigating)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Resolved</span>
+                    <span className="font-mono">
+                      {formatNumber(alertStatusCounts.resolved)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Dismissed</span>
+                    <span className="font-mono">
+                      {formatNumber(alertStatusCounts.dismissed)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
