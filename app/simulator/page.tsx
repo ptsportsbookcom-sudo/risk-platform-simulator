@@ -126,16 +126,20 @@ export default function SimulatorPage() {
     null,
   );
   const [isRunningScenario, setIsRunningScenario] = useState<boolean>(false);
-  const [expectedAlert, setExpectedAlert] = useState<"" | "yes" | "no">("");
-  const [expectedCase, setExpectedCase] = useState<"" | "yes" | "no">("");
+  const [expectedAlert, setExpectedAlert] = useState<boolean>(false);
   const [expectedRule, setExpectedRule] = useState<string>("");
   const [expectedSegment, setExpectedSegment] = useState<string>("");
-  const [validationResult, setValidationResult] = useState<{
-    alertMatch?: boolean;
-    caseMatch?: boolean;
-    ruleMatch?: boolean;
-    segmentMatch?: boolean;
-  }>({});
+  const [previousAlertsLength, setPreviousAlertsLength] = useState<number>(0);
+  const [validationResult, setValidationResult] = useState<null | {
+    alert: boolean;
+    rule: boolean;
+    segment: boolean;
+    actual: {
+      alertCreated: boolean;
+      ruleTriggered: string | null;
+      segments: string[];
+    };
+  }>(null);
 
   const showAmount =
     customType === "deposit" ||
@@ -153,55 +157,37 @@ export default function SimulatorPage() {
   const isSportsbook = customType === "place_bet" && customProduct === "sportsbook";
   const isCasino = customType === "place_bet" && customProduct === "casino";
 
-  function validateScenario(result: ProcessEventResult | null) {
-    if (!result) {
-      setValidationResult({});
-      return;
-    }
+  function validateScenario(result: ProcessEventResult, prevAlertsLen: number) {
+    const actualAlertCreated = result.state.alerts.length > prevAlertsLen;
 
-    const actualAlertCreated = result.newAlerts.length > 0;
-    const actualCaseCreated = result.newCases.length > 0;
+    const actualRuleTriggered =
+      result.triggeredRules.length > 0 ? result.triggeredRules[0].ruleId : null;
 
-    const alertMatch =
-      expectedAlert === ""
-        ? undefined
-        : expectedAlert === "yes"
-          ? actualAlertCreated
-          : !actualAlertCreated;
+    const segments =
+      result.state.players[DEFAULT_PLAYER_ID]?.segments ?? [];
 
-    const caseMatch =
-      expectedCase === ""
-        ? undefined
-        : expectedCase === "yes"
-          ? actualCaseCreated
-          : !actualCaseCreated;
+    const expectedRuleTrimmed = expectedRule.trim();
+    const expectedSegmentTrimmed = expectedSegment.trim();
 
-    let ruleMatch: boolean | undefined;
-    const trimmedRule = expectedRule.trim();
-    if (trimmedRule.length > 0) {
-      const lower = trimmedRule.toLowerCase();
-      ruleMatch = result.triggeredRules.some((r) => {
-        if (r.ruleId.toLowerCase().includes(lower)) return true;
-        const desc = r.description?.toLowerCase() ?? "";
-        return desc.includes(lower);
-      });
-    }
-
-    let segmentMatch: boolean | undefined;
-    const trimmedSegment = expectedSegment.trim();
-    if (trimmedSegment.length > 0) {
-      const playerState = result.state.players[DEFAULT_PLAYER_ID];
-      const segments = playerState?.segments ?? [];
-      segmentMatch = segments.some((s) =>
-        s.toLowerCase().includes(trimmedSegment.toLowerCase()),
-      );
-    }
+    const alertMatch = expectedAlert === actualAlertCreated;
+    const ruleMatch =
+      expectedRuleTrimmed.length === 0
+        ? true
+        : actualRuleTriggered === expectedRuleTrimmed;
+    const segmentMatch =
+      expectedSegmentTrimmed.length === 0
+        ? true
+        : segments.includes(expectedSegmentTrimmed);
 
     setValidationResult({
-      alertMatch,
-      caseMatch,
-      ruleMatch,
-      segmentMatch,
+      alert: alertMatch,
+      rule: ruleMatch,
+      segment: segmentMatch,
+      actual: {
+        alertCreated: actualAlertCreated,
+        ruleTriggered: actualRuleTriggered,
+        segments,
+      },
     });
   }
 
@@ -288,6 +274,9 @@ export default function SimulatorPage() {
       timestamp: Date.now(),
     };
 
+    const prevAlertsLen = state.alerts.length;
+    setPreviousAlertsLength(prevAlertsLen);
+
     const result = processSimulatorEvent({
       playerId: uiEvent.playerId,
       eventType: button.engineType,
@@ -325,7 +314,7 @@ export default function SimulatorPage() {
 
     appendResultToLog(result);
     setLastResult(result);
-    validateScenario(result);
+    validateScenario(result, prevAlertsLen);
   }
 
   function runCustomEvent() {
@@ -396,6 +385,9 @@ export default function SimulatorPage() {
       }
     }
 
+    const prevAlertsLen = state.alerts.length;
+    setPreviousAlertsLength(prevAlertsLen);
+
     const result = processSimulatorEvent({
       playerId: uiEvent.playerId,
       eventType: uiEvent.type,
@@ -427,7 +419,7 @@ export default function SimulatorPage() {
 
     appendResultToLog(result);
     setLastResult(result);
-    validateScenario(result);
+    validateScenario(result, prevAlertsLen);
   }
 
   function handleCreatePlayer() {
@@ -536,6 +528,8 @@ export default function SimulatorPage() {
     setIsRunningScenario(true);
     try {
       let last: ProcessEventResult | null = null;
+      const prevAlertsLen = state.alerts.length;
+      setPreviousAlertsLength(prevAlertsLen);
       for (const step of scenario.steps) {
         const result = processSimulatorEvent({
           playerId: DEFAULT_PLAYER_ID,
@@ -554,7 +548,7 @@ export default function SimulatorPage() {
 
       if (last) {
         setLastResult(last);
-        validateScenario(last);
+        validateScenario(last, prevAlertsLen);
       }
 
       setScenarios((prev) =>
@@ -644,38 +638,23 @@ export default function SimulatorPage() {
       </Card>
 
       <Card title="Expected Outcomes">
-        <div className="grid gap-3 text-xs md:grid-cols-4">
+        <div className="grid gap-3 text-xs md:grid-cols-3">
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">
               Expected Alert Created
             </label>
-            <select
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={expectedAlert}
-              onChange={(e) =>
-                setExpectedAlert(e.target.value as "" | "yes" | "no")
-              }
-            >
-              <option value="">Not set</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] text-slate-400">
-              Expected Case Created
-            </label>
-            <select
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
-              value={expectedCase}
-              onChange={(e) =>
-                setExpectedCase(e.target.value as "" | "yes" | "no")
-              }
-            >
-              <option value="">Not set</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
+            <div className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-900 px-2 py-1">
+              <span className="text-[11px] text-slate-200">
+                {expectedAlert ? "Yes" : "No"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setExpectedAlert((v) => !v)}
+                className="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-100 hover:border-emerald-500"
+              >
+                Toggle
+              </button>
+            </div>
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] text-slate-400">
@@ -685,7 +664,7 @@ export default function SimulatorPage() {
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
               value={expectedRule}
               onChange={(e) => setExpectedRule(e.target.value)}
-              placeholder="Rule id or name fragment"
+              placeholder="Rule id (exact match)"
             />
           </div>
           <div className="space-y-1">
@@ -696,7 +675,7 @@ export default function SimulatorPage() {
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-emerald-500"
               value={expectedSegment}
               onChange={(e) => setExpectedSegment(e.target.value)}
-              placeholder="Segment id (e.g. high_risk)"
+              placeholder="Segment id (exact match)"
             />
           </div>
         </div>
@@ -1374,13 +1353,13 @@ export default function SimulatorPage() {
       </Card>
 
       <Card
-        title="Scenario Validation"
-        description="Comparison between expected outcomes and actual simulator results."
+        title="Scenario Validation Results"
+        description="Expected vs actual results for the last simulator event."
       >
-        {!lastResult ? (
+        {!validationResult ? (
           <p className="text-xs text-slate-400">
-            Define expected outcomes above and run a simulator event or scenario
-            to see validation results.
+            Define expected outcomes above and run a simulator event to validate
+            the outcome.
           </p>
         ) : (
           <div className="grid gap-2 text-xs md:grid-cols-2">
@@ -1388,73 +1367,65 @@ export default function SimulatorPage() {
               <span className="text-slate-400">Alert Created</span>
               <span
                 className={
-                  validationResult.alertMatch === undefined
-                    ? "font-mono text-[11px] text-slate-400"
-                    : validationResult.alertMatch
-                      ? "font-mono text-[11px] text-emerald-300"
-                      : "font-mono text-[11px] text-red-300"
+                  validationResult.alert
+                    ? "font-mono text-[11px] text-emerald-300"
+                    : "font-mono text-[11px] text-red-300"
                 }
               >
-                {validationResult.alertMatch === undefined
-                  ? "Not set"
-                  : validationResult.alertMatch
-                    ? "✔ PASS"
-                    : "❌ FAIL"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
-              <span className="text-slate-400">Case Created</span>
-              <span
-                className={
-                  validationResult.caseMatch === undefined
-                    ? "font-mono text-[11px] text-slate-400"
-                    : validationResult.caseMatch
-                      ? "font-mono text-[11px] text-emerald-300"
-                      : "font-mono text-[11px] text-red-300"
-                }
-              >
-                {validationResult.caseMatch === undefined
-                  ? "Not set"
-                  : validationResult.caseMatch
-                    ? "✔ PASS"
-                    : "❌ FAIL"}
+                {validationResult.alert ? "✔ PASS" : "❌ FAIL"}
               </span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
               <span className="text-slate-400">Rule Triggered</span>
               <span
                 className={
-                  validationResult.ruleMatch === undefined
-                    ? "font-mono text-[11px] text-slate-400"
-                    : validationResult.ruleMatch
-                      ? "font-mono text-[11px] text-emerald-300"
-                      : "font-mono text-[11px] text-red-300"
+                  validationResult.rule
+                    ? "font-mono text-[11px] text-emerald-300"
+                    : "font-mono text-[11px] text-red-300"
                 }
               >
-                {validationResult.ruleMatch === undefined
-                  ? "Not set"
-                  : validationResult.ruleMatch
-                    ? "✔ PASS"
-                    : "❌ FAIL"}
+                {validationResult.rule ? "✔ PASS" : "❌ FAIL"}
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
+            <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2 md:col-span-2">
               <span className="text-slate-400">Segment Assigned</span>
               <span
                 className={
-                  validationResult.segmentMatch === undefined
-                    ? "font-mono text-[11px] text-slate-400"
-                    : validationResult.segmentMatch
-                      ? "font-mono text-[11px] text-emerald-300"
-                      : "font-mono text-[11px] text-red-300"
+                  validationResult.segment
+                    ? "font-mono text-[11px] text-emerald-300"
+                    : "font-mono text-[11px] text-red-300"
                 }
               >
-                {validationResult.segmentMatch === undefined
-                  ? "Not set"
-                  : validationResult.segmentMatch
-                    ? "✔ PASS"
-                    : "❌ FAIL"}
+                {validationResult.segment ? "✔ PASS" : "❌ FAIL"}
               </span>
+            </div>
+
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2 md:col-span-2">
+              <div className="mb-1 text-[11px] font-semibold text-slate-200">
+                Actuals (last event)
+              </div>
+              <div className="space-y-1 text-[11px] text-slate-300">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Alert Created</span>
+                  <span className="font-mono text-slate-100">
+                    {validationResult.actual.alertCreated ? "YES" : "NO"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Rule Triggered</span>
+                  <span className="font-mono text-slate-100">
+                    {validationResult.actual.ruleTriggered ?? "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Segments</span>
+                  <span className="font-mono text-slate-100">
+                    {validationResult.actual.segments.length === 0
+                      ? "—"
+                      : validationResult.actual.segments.join(", ")}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}
