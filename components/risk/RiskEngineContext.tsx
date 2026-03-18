@@ -28,6 +28,7 @@ import { evaluateSegment } from "@/modules/segmentation/evaluateSegment";
 
 type RiskEngineAction =
   | { type: "COMMIT"; payload: { state: RiskEngineState; sequence: number } }
+  | { type: "LOG_AUDIT"; payload: AuditEntry }
   | {
       type: "UPDATE_PLAYER";
       payload: { playerId: string; patch: Partial<PlayerRiskState> };
@@ -109,6 +110,14 @@ function reducer(
       return {
         state: action.payload.state,
         sequence: action.payload.sequence,
+      };
+    case "LOG_AUDIT":
+      return {
+        state: {
+          ...current.state,
+          auditLog: [...(current.state.auditLog ?? []), action.payload],
+        },
+        sequence: current.sequence,
       };
     case "UPDATE_PLAYER": {
       const existing = current.state.players[action.payload.playerId];
@@ -280,10 +289,37 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
     };
   });
 
+  function createAuditEntry(
+    type: string,
+    entityId: string,
+    details?: Record<string, unknown>,
+  ): AuditEntry & {
+    type: string;
+    entityId: string;
+    details?: Record<string, unknown>;
+  } {
+    const inferredPlayerId =
+      (details?.playerId as string | undefined) ??
+      (entityId.startsWith("P-") ? entityId : "SYSTEM");
+
+    return {
+      id: `AUD-${Date.now()}`,
+      playerId: inferredPlayerId,
+      action: type,
+      performedBy: "system",
+      timestamp: new Date().toISOString(),
+      type,
+      entityId,
+      details,
+    };
+  }
+
   const value: RiskEngineContextValue = useMemo(
     () => ({
       state: internal.state,
       sequence: internal.sequence,
+      logAudit: (entry: AuditEntry) =>
+        dispatch({ type: "LOG_AUDIT", payload: entry }),
       processSimulatorEvent: (input: SimulatorEventInput) => {
         const nextSeq = internal.sequence + 1;
         const engineEvent = buildEngineEventFromSimulator(nextSeq, input);
@@ -409,10 +445,28 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         // eslint-disable-next-line no-console
         console.log("Created simulated player", id, playerWithSegments);
 
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("PLAYER_CREATED", id, {
+            playerId: id,
+            name: playerWithSegments.name,
+            country: playerWithSegments.country,
+            segments: playerWithSegments.segments,
+          }),
+        });
+
         return id;
       },
-      updatePlayerStatus: (playerId: string, patch: Partial<PlayerRiskState>) =>
-        dispatch({ type: "UPDATE_PLAYER", payload: { playerId, patch } }),
+      updatePlayerStatus: (playerId: string, patch: Partial<PlayerRiskState>) => {
+        dispatch({ type: "UPDATE_PLAYER", payload: { playerId, patch } });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("PLAYER_UPDATED", playerId, {
+            playerId,
+            ...(patch as unknown as Record<string, unknown>),
+          }),
+        });
+      },
       addRule: (rule: Rule) => dispatch({ type: "ADD_RULE", payload: rule }),
       toggleRule: (id: string) =>
         dispatch({ type: "TOGGLE_RULE", payload: { id } }),
@@ -426,16 +480,32 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "UPDATE_SEGMENT", payload: { id, updates } }),
       deleteSegment: (id: string) =>
         dispatch({ type: "DELETE_SEGMENT", payload: { id } }),
-      assignSegmentToPlayer: (playerId: string, segmentId: string) =>
+      assignSegmentToPlayer: (playerId: string, segmentId: string) => {
         dispatch({
           type: "ASSIGN_SEGMENT_TO_PLAYER",
           payload: { playerId, segmentId },
-        }),
-      removeSegmentFromPlayer: (playerId: string, segmentId: string) =>
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("SEGMENT_ASSIGNED", segmentId, {
+            playerId,
+            segmentId,
+          }),
+        });
+      },
+      removeSegmentFromPlayer: (playerId: string, segmentId: string) => {
         dispatch({
           type: "REMOVE_SEGMENT_FROM_PLAYER",
           payload: { playerId, segmentId },
-        }),
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("SEGMENT_REMOVED", segmentId, {
+            playerId,
+            segmentId,
+          }),
+        });
+      },
       updateHighRiskBet: (betId, patch) =>
         dispatch({
           type: "COMMIT",
@@ -469,7 +539,8 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             sequence: internal.sequence,
           },
         }),
-      approveHighRiskBet: (id: string) =>
+      approveHighRiskBet: (id: string) => {
+        const bet = internal.state.highRiskBets.find((b) => b.id === id);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -481,8 +552,17 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             },
             sequence: internal.sequence,
           },
-        }),
-      rejectHighRiskBet: (id: string) =>
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("HIGH_RISK_BET_UPDATED", id, {
+            playerId: bet?.playerId,
+            status: "approved",
+          }),
+        });
+      },
+      rejectHighRiskBet: (id: string) => {
+        const bet = internal.state.highRiskBets.find((b) => b.id === id);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -494,8 +574,17 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             },
             sequence: internal.sequence,
           },
-        }),
-      modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) =>
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("HIGH_RISK_BET_UPDATED", id, {
+            playerId: bet?.playerId,
+            status: "rejected",
+          }),
+        });
+      },
+      modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) => {
+        const bet = internal.state.highRiskBets.find((b) => b.id === id);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -517,7 +606,16 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             },
             sequence: internal.sequence,
           },
-        }),
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("HIGH_RISK_BET_UPDATED", id, {
+            playerId: bet?.playerId,
+            status: "modified",
+            ...updates,
+          }),
+        });
+      },
       resolveAlert: (alertId: string) =>
         dispatch({
           type: "COMMIT",
@@ -531,90 +629,120 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
             sequence: internal.sequence,
           },
         }),
-      closeCase: (caseId: string) =>
+      closeCase: (caseId: string) => {
+        const c = internal.state.cases.find((x) => x.id === caseId);
         dispatch({
           type: "COMMIT",
           payload: {
             state: {
               ...internal.state,
-              cases: internal.state.cases.map((c) =>
-                c.id === caseId ? { ...c, status: "Closed" } : c,
+              cases: internal.state.cases.map((x) =>
+                x.id === caseId ? { ...x, status: "Closed" } : x,
               ),
             },
             sequence: internal.sequence,
           },
-        }),
-      logAudit: (entry: AuditEntry) =>
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("CASE_CLOSED", caseId, {
+            playerId: c?.playerId,
+            caseId,
+          }),
+        });
+      },
+      assignAlert: (alertId: string, analyst: string | null) => {
+        const a = internal.state.alerts.find((x) => x.id === alertId);
         dispatch({
           type: "COMMIT",
           payload: {
             state: {
               ...internal.state,
-              auditLog: [...(internal.state.auditLog ?? []), entry],
-            },
-            sequence: internal.sequence,
-          },
-        }),
-      assignAlert: (alertId: string, analyst: string | null) =>
-        dispatch({
-          type: "COMMIT",
-          payload: {
-            state: {
-              ...internal.state,
-              alerts: internal.state.alerts.map((a) =>
-                a.id === alertId ? { ...a, assignedTo: analyst } : a,
+              alerts: internal.state.alerts.map((x) =>
+                x.id === alertId ? { ...x, assignedTo: analyst } : x,
               ),
             },
             sequence: internal.sequence,
           },
-        }),
-      updateAlertStatus: (alertId, status, resolutionNote) =>
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("ALERT_ASSIGNED", alertId, {
+            playerId: a?.playerId,
+            alertId,
+            assignedTo: analyst,
+          }),
+        });
+      },
+      updateAlertStatus: (alertId, status, resolutionNote) => {
+        const a = internal.state.alerts.find((x) => x.id === alertId);
         dispatch({
           type: "COMMIT",
           payload: {
             state: {
               ...internal.state,
-              alerts: internal.state.alerts.map((a) =>
-                a.id === alertId
+              alerts: internal.state.alerts.map((x) =>
+                x.id === alertId
                   ? {
-                      ...a,
+                      ...x,
                       status,
                       ...(resolutionNote !== undefined
                         ? { resolutionNote }
                         : {}),
                     }
-                  : a,
+                  : x,
               ),
             },
             sequence: internal.sequence,
           },
-        }),
-      escalateAlertToCase: (alertId: string, title?: string) =>
+        });
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("ALERT_STATUS_CHANGED", alertId, {
+            playerId: a?.playerId,
+            alertId,
+            status,
+            resolutionNote,
+          }),
+        });
+      },
+      escalateAlertToCase: (alertId: string, title?: string) => {
+        const alert = internal.state.alerts.find((a) => a.id === alertId);
+        if (!alert) return;
+
+        const caseId = `CASE-MANUAL-${Date.now()}`;
+        const newCase = {
+          id: caseId,
+          playerId: alert.playerId,
+          alerts: [alert.id],
+          openedAt: new Date().toISOString(),
+          status: "Open" as const,
+        };
+
         dispatch({
           type: "COMMIT",
           payload: {
-            state: (() => {
-              const alert = internal.state.alerts.find((a) => a.id === alertId);
-              if (!alert) return internal.state;
-              const caseId = `CASE-MANUAL-${Date.now()}`;
-              const newCase = {
-                id: caseId,
-                playerId: alert.playerId,
-                alerts: [alert.id],
-                openedAt: new Date().toISOString(),
-                status: "Open" as const,
-              };
-              return {
-                ...internal.state,
-                alerts: internal.state.alerts.map((a) =>
-                  a.id === alertId ? { ...a, status: "escalated" } : a,
-                ),
-                cases: [...internal.state.cases, newCase],
-              };
-            })(),
+            state: {
+              ...internal.state,
+              alerts: internal.state.alerts.map((a) =>
+                a.id === alertId ? { ...a, status: "escalated" } : a,
+              ),
+              cases: [...internal.state.cases, newCase],
+            },
             sequence: internal.sequence,
           },
-        }),
+        });
+
+        dispatch({
+          type: "LOG_AUDIT",
+          payload: createAuditEntry("CASE_CREATED_FROM_ALERT", caseId, {
+            playerId: alert.playerId,
+            alertId,
+            caseId,
+            title,
+          }),
+        });
+      },
       reset: () => dispatch({ type: "RESET" }),
     }),
     [internal],
