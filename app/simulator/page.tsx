@@ -1398,8 +1398,8 @@ export default function SimulatorPage() {
                 {validationResult.alertMatch === undefined
                   ? "Not set"
                   : validationResult.alertMatch
-                    ? "PASS"
-                    : "FAIL"}
+                    ? "✔ PASS"
+                    : "❌ FAIL"}
               </span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
@@ -1416,8 +1416,8 @@ export default function SimulatorPage() {
                 {validationResult.caseMatch === undefined
                   ? "Not set"
                   : validationResult.caseMatch
-                    ? "PASS"
-                    : "FAIL"}
+                    ? "✔ PASS"
+                    : "❌ FAIL"}
               </span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
@@ -1434,8 +1434,8 @@ export default function SimulatorPage() {
                 {validationResult.ruleMatch === undefined
                   ? "Not set"
                   : validationResult.ruleMatch
-                    ? "PASS"
-                    : "FAIL"}
+                    ? "✔ PASS"
+                    : "❌ FAIL"}
               </span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
@@ -1452,8 +1452,8 @@ export default function SimulatorPage() {
                 {validationResult.segmentMatch === undefined
                   ? "Not set"
                   : validationResult.segmentMatch
-                    ? "PASS"
-                    : "FAIL"}
+                    ? "✔ PASS"
+                    : "❌ FAIL"}
               </span>
             </div>
           </div>
