@@ -393,28 +393,6 @@ export function processEvent(
     provisionalLog,
   );
 
-  const snapshotForRules: PlayerRiskSnapshot = {
-    playerId: playerWithActivity.playerId,
-    kycLevel: playerWithActivity.kycLevel,
-    depositTimestamps: playerWithActivity.depositTimestamps,
-    deviceIds: playerWithActivity.deviceIds ?? [],
-    segments: playerWithActivity.segments ?? [],
-    metrics: metrics as unknown as { [metricName: string]: number },
-  };
-
-  const ruleResults = evaluateRules(event, snapshotForRules, state.rules ?? []);
-
-  // Audit: rules triggered
-  for (const r of ruleResults) {
-    auditEntries.push({
-      id: nextId("AUDIT"),
-      playerId: event.playerId,
-      action: `Rule triggered: ${r.ruleId}`,
-      performedBy: "system",
-      timestamp: event.timestamp,
-    });
-  }
-
   // Lightweight sportsbook liability tracking for bet events
   const metaForLiability = (event.metadata ?? {}) as {
     eventId?: string;
@@ -423,6 +401,9 @@ export function processEvent(
     market?: string;
     odds?: number;
   };
+  let currentEventLiability = 0;
+  let currentMarketLiability = 0;
+
   if (
     event.eventType === "place_bet" ||
     event.eventType === "large_bet" ||
@@ -446,6 +427,9 @@ export function processEvent(
       (playerLiability[event.playerId] ?? 0) + liability;
     eventLiability[eventKey] = (eventLiability[eventKey] ?? 0) + liability;
     marketLiability[marketKey] = (marketLiability[marketKey] ?? 0) + liability;
+
+    currentEventLiability = eventLiability[eventKey] ?? 0;
+    currentMarketLiability = marketLiability[marketKey] ?? 0;
 
     state = {
       ...state,
@@ -479,6 +463,34 @@ export function processEvent(
   let reviewQueue: ReviewQueue | undefined;
   let betBlocked = false;
   let cumulativePlayerUpdates: Partial<PlayerRiskState> = {};
+
+  const snapshotForRules: PlayerRiskSnapshot = {
+    playerId: playerWithActivity.playerId,
+    kycLevel: playerWithActivity.kycLevel,
+    depositTimestamps: playerWithActivity.depositTimestamps,
+    deviceIds: playerWithActivity.deviceIds ?? [],
+    segments: playerWithActivity.segments ?? [],
+    metrics: {
+      ...(metrics as unknown as { [metricName: string]: number }),
+      player_liability:
+        (state.playerLiability ?? {})[event.playerId] ?? 0,
+      event_liability: currentEventLiability,
+      market_liability: currentMarketLiability,
+    },
+  };
+
+  const ruleResults = evaluateRules(event, snapshotForRules, state.rules ?? []);
+
+  // Audit: rules triggered
+  for (const r of ruleResults) {
+    auditEntries.push({
+      id: nextId("AUDIT"),
+      playerId: event.playerId,
+      action: `Rule triggered: ${r.ruleId}`,
+      performedBy: "system",
+      timestamp: event.timestamp,
+    });
+  }
 
   // Process rules: maintain backwards compatibility while supporting new actions
   for (const rule of ruleResults) {
