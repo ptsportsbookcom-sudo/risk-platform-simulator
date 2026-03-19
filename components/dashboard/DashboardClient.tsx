@@ -3,10 +3,69 @@
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useRiskEngine } from "@/components/risk/RiskEngineContext";
-import { SEGMENT_ID_TO_NAME } from "@/modules/segmentation/segmentRegistry";
 
 function formatNumber(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function getFraudInsights(state: {
+  alerts: any[];
+  players: Record<string, any>;
+  rules: any[];
+}) {
+  const alerts = state.alerts ?? [];
+  const players = Object.values(state.players ?? {});
+  const rules = state.rules ?? [];
+
+  const highRiskPlayers = new Set(
+    alerts
+      .filter(
+        (a) =>
+          a.severity === "High" ||
+          a.severity === "Critical" ||
+          a.severity === "high",
+      )
+      .map((a) => a.playerId),
+  );
+
+  const severityCount = {
+    high: alerts.filter((a) => a.severity === "High" || a.severity === "high")
+      .length,
+    medium: alerts.filter((a) => a.severity === "Medium" || a.severity === "medium")
+      .length,
+    low: alerts.filter((a) => a.severity === "Low" || a.severity === "low").length,
+  };
+
+  const ruleHits: Record<string, number> = {};
+  alerts.forEach((a) => {
+    const ruleId = a.ruleTriggered ?? a.ruleId;
+    if (!ruleId) return;
+    ruleHits[ruleId] = (ruleHits[ruleId] || 0) + 1;
+  });
+
+  const topRules = Object.entries(ruleHits)
+    .map(([ruleId, count]) => ({
+      ruleId,
+      name: rules.find((r) => r.id === ruleId)?.name || ruleId,
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const segmentCounts: Record<string, number> = {};
+  players.forEach((p: any) => {
+    (p.segments ?? []).forEach((seg: string) => {
+      segmentCounts[seg] = (segmentCounts[seg] || 0) + 1;
+    });
+  });
+
+  return {
+    totalPlayers: players.length,
+    highRiskPlayers: highRiskPlayers.size,
+    severityCount,
+    topRules,
+    segmentCounts,
+  };
 }
 
 export function DashboardClient() {
@@ -41,32 +100,14 @@ export function DashboardClient() {
   const alerts = state.alerts ?? [];
   const cases = state.cases ?? [];
 
-  // Top triggered rules from alerts
-  const topRules = (() => {
-    const counts = new Map<
-      string,
-      { ruleId: string; ruleName: string; count: number }
-    >();
-    for (const alert of alerts) {
-      const ruleId = alert.ruleTriggered;
-      const existing = counts.get(ruleId);
-      const rule =
-        state.rules.find((r) => r.id === ruleId) ??
-        state.rules.find((r) => r.name === ruleId);
-      if (existing) {
-        existing.count += 1;
-      } else {
-        counts.set(ruleId, {
-          ruleId,
-          ruleName: rule?.name ?? ruleId,
-          count: 1,
-        });
-      }
-    }
-    return Array.from(counts.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  })();
+  const insights = getFraudInsights(state as any);
+
+  // Top triggered rules from alerts (via fraud insights helper)
+  const topRules = insights.topRules.map((r) => ({
+    ruleId: r.ruleId,
+    ruleName: r.name,
+    count: r.count,
+  }));
 
   // Alert summary by severity and status
   const alertSeverityCounts: Record<
@@ -151,7 +192,7 @@ export function DashboardClient() {
         <Card title="High Risk Players" accent="amber">
           <div className="flex items-end justify-between">
             <div className="text-3xl font-semibold text-amber-300">
-              {formatNumber(dashboard.highRiskPlayers)}
+              {formatNumber(insights.highRiskPlayers)}
             </div>
             <Badge variant="warning">Monitoring</Badge>
           </div>
