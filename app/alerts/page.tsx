@@ -71,6 +71,18 @@ export default function AlertsPage() {
     [alerts, selectedAlertId],
   );
 
+  const alertsToCaseMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of state.cases ?? []) {
+      for (const alertId of c.alerts) {
+        if (!map.has(alertId)) {
+          map.set(alertId, c.id);
+        }
+      }
+    }
+    return map;
+  }, [state.cases]);
+
   // Keep local resolution note draft in sync with selected alert
   if (selectedAlert && resolutionNoteDraft === "" && selectedAlert.resolutionNote) {
     // Initialize lazily to avoid useEffect for simplicity
@@ -154,6 +166,7 @@ export default function AlertsPage() {
               <TR>
                 <TH>Alert ID</TH>
                 <TH>Player</TH>
+                <TH>Linked Case</TH>
                 <TH>Rule</TH>
                 <TH>Severity</TH>
                 <TH>Status</TH>
@@ -165,6 +178,7 @@ export default function AlertsPage() {
             <TBody>
               {filteredAlerts.map((a) => {
                 const player = state.players[a.playerId];
+                const linkedCaseId = alertsToCaseMap.get(a.id);
                 return (
                   <TR
                     key={a.id}
@@ -185,6 +199,22 @@ export default function AlertsPage() {
                       >
                         {player ? `${player.name} (${a.playerId})` : a.playerId}
                       </button>
+                    </TD>
+                    <TD className="text-[11px] text-slate-300">
+                      {linkedCaseId ? (
+                        <button
+                          type="button"
+                          className="text-emerald-300 hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/cases/${linkedCaseId}`);
+                          }}
+                        >
+                          Linked Case: {linkedCaseId}
+                        </button>
+                      ) : (
+                        <span className="text-slate-500">No case</span>
+                      )}
                     </TD>
                     <TD className="text-xs text-slate-100">
                       {state.rules.find((r) => r.id === a.ruleTriggered)?.name ??
