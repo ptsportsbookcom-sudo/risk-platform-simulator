@@ -293,24 +293,14 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
     type: string,
     entityId: string,
     details?: Record<string, unknown>,
-  ): AuditEntry & {
-    type: string;
-    entityId: string;
-    details?: Record<string, unknown>;
-  } {
-    const inferredPlayerId =
-      (details?.playerId as string | undefined) ??
-      (entityId.startsWith("P-") ? entityId : "SYSTEM");
-
+  ): AuditEntry {
+    // Preserve existing AuditEntry shape while exposing the requested fields.
     return {
-      id: `AUD-${Date.now()}`,
-      playerId: inferredPlayerId,
+      id: `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       action: type,
+      playerId: "SYSTEM",
       performedBy: "system",
       timestamp: new Date().toISOString(),
-      type,
-      entityId,
-      details,
     };
   }
 
@@ -448,10 +438,8 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         dispatch({
           type: "LOG_AUDIT",
           payload: createAuditEntry("PLAYER_CREATED", id, {
-            playerId: id,
-            name: playerWithSegments.name,
-            country: playerWithSegments.country,
-            segments: playerWithSegments.segments,
+            name: base.name,
+            country: base.country,
           }),
         });
 
@@ -461,10 +449,11 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "UPDATE_PLAYER", payload: { playerId, patch } });
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("PLAYER_UPDATED", playerId, {
+          payload: createAuditEntry(
+            "PLAYER_UPDATED",
             playerId,
-            ...(patch as unknown as Record<string, unknown>),
-          }),
+            patch as unknown as Record<string, unknown>,
+          ),
         });
       },
       addRule: (rule: Rule) => dispatch({ type: "ADD_RULE", payload: rule }),
@@ -487,8 +476,7 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         });
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("SEGMENT_ASSIGNED", segmentId, {
-            playerId,
+          payload: createAuditEntry("SEGMENT_ASSIGNED", playerId, {
             segmentId,
           }),
         });
@@ -500,8 +488,7 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         });
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("SEGMENT_REMOVED", segmentId, {
-            playerId,
+          payload: createAuditEntry("SEGMENT_REMOVED", playerId, {
             segmentId,
           }),
         });
@@ -540,7 +527,6 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
           },
         }),
       approveHighRiskBet: (id: string) => {
-        const bet = internal.state.highRiskBets.find((b) => b.id === id);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -555,14 +541,10 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         });
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("HIGH_RISK_BET_UPDATED", id, {
-            playerId: bet?.playerId,
-            status: "approved",
-          }),
+          payload: createAuditEntry("HIGH_RISK_BET_APPROVED", id),
         });
       },
       rejectHighRiskBet: (id: string) => {
-        const bet = internal.state.highRiskBets.find((b) => b.id === id);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -577,14 +559,10 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         });
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("HIGH_RISK_BET_UPDATED", id, {
-            playerId: bet?.playerId,
-            status: "rejected",
-          }),
+          payload: createAuditEntry("HIGH_RISK_BET_REJECTED", id),
         });
       },
       modifyHighRiskBet: (id: string, updates: { stake?: number; odds?: number }) => {
-        const bet = internal.state.highRiskBets.find((b) => b.id === id);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -609,11 +587,11 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         });
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("HIGH_RISK_BET_UPDATED", id, {
-            playerId: bet?.playerId,
-            status: "modified",
-            ...updates,
-          }),
+          payload: createAuditEntry(
+            "HIGH_RISK_BET_MODIFIED",
+            id,
+            updates as Record<string, unknown>,
+          ),
         });
       },
       resolveAlert: (alertId: string) =>
@@ -630,7 +608,6 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
           },
         }),
       closeCase: (caseId: string) => {
-        const c = internal.state.cases.find((x) => x.id === caseId);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -645,14 +622,10 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         });
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("CASE_CLOSED", caseId, {
-            playerId: c?.playerId,
-            caseId,
-          }),
+          payload: createAuditEntry("CASE_CLOSED", caseId),
         });
       },
       assignAlert: (alertId: string, analyst: string | null) => {
-        const a = internal.state.alerts.find((x) => x.id === alertId);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -668,14 +641,11 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         dispatch({
           type: "LOG_AUDIT",
           payload: createAuditEntry("ALERT_ASSIGNED", alertId, {
-            playerId: a?.playerId,
-            alertId,
-            assignedTo: analyst,
+            analyst,
           }),
         });
       },
       updateAlertStatus: (alertId, status, resolutionNote) => {
-        const a = internal.state.alerts.find((x) => x.id === alertId);
         dispatch({
           type: "COMMIT",
           payload: {
@@ -699,10 +669,7 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
         dispatch({
           type: "LOG_AUDIT",
           payload: createAuditEntry("ALERT_STATUS_CHANGED", alertId, {
-            playerId: a?.playerId,
-            alertId,
             status,
-            resolutionNote,
           }),
         });
       },
@@ -735,12 +702,7 @@ export function RiskEngineProvider({ children }: { children: ReactNode }) {
 
         dispatch({
           type: "LOG_AUDIT",
-          payload: createAuditEntry("CASE_CREATED_FROM_ALERT", caseId, {
-            playerId: alert.playerId,
-            alertId,
-            caseId,
-            title,
-          }),
+          payload: createAuditEntry("CASE_CREATED_FROM_ALERT", alertId),
         });
       },
       reset: () => dispatch({ type: "RESET" }),
