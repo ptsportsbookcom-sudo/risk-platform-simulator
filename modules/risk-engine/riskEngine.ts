@@ -303,6 +303,57 @@ export function processEvent(
       };
     })();
 
+  // Pre-rule event validation: enforce player restrictions before any metrics/rules/actions.
+  const evType = event.eventType;
+  const isDeposit = evType === "deposit";
+  const isWithdraw = evType === "withdraw";
+  const isBet =
+    evType === "place_bet" ||
+    evType === "large_bet" ||
+    evType === "suspicious_bet";
+  const isGameplay = evType === "casino_session";
+
+  const isFinancialOrGameplay = isDeposit || isWithdraw || isBet || isGameplay;
+
+  let shouldBlock = false;
+
+  if (
+    isFinancialOrGameplay &&
+    (baselinePlayer.accountStatus === "Frozen" ||
+      baselinePlayer.accountStatus === "Closed")
+  ) {
+    shouldBlock = true;
+  }
+
+  if (!shouldBlock && isDeposit && baselinePlayer.canDeposit === false) {
+    shouldBlock = true;
+  }
+
+  if (!shouldBlock && isWithdraw && baselinePlayer.canWithdraw === false) {
+    shouldBlock = true;
+  }
+
+  if (!shouldBlock && isBet && baselinePlayer.blockedActions?.betting) {
+    shouldBlock = true;
+  }
+
+  if (!shouldBlock && isGameplay && baselinePlayer.blockedActions?.gameplay) {
+    shouldBlock = true;
+  }
+
+  if (shouldBlock) {
+    return {
+      state,
+      triggeredRules: [],
+      newAlerts: [],
+      newCases: [],
+      actions: [],
+      reviewQueue: undefined,
+      reviewStatus: undefined,
+      betBlocked: true,
+    };
+  }
+
   const player: PlayerRiskState =
     event.eventType === "deposit"
       ? {
