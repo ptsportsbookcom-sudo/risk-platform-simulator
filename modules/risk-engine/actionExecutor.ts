@@ -45,6 +45,7 @@ export function executeActions(
     result.recordedActions.push(action);
 
     switch (action.type) {
+      case "create_alert":
       case "createAlert": {
         const alert: EngineAlert = {
           id: nextId("ALERT"),
@@ -60,6 +61,7 @@ export function executeActions(
         break;
       }
 
+      case "create_case":
       case "createCase": {
         const caseRecord: EngineCase = {
           id: nextId("CASE"),
@@ -72,9 +74,34 @@ export function executeActions(
         break;
       }
 
+      case "assign_segment": {
+        const segmentId =
+          action.params?.segmentId ??
+          (action as any).value ??
+          action.params?.value;
+        if (!segmentId) {
+          break;
+        }
+        const current =
+          result.playerUpdates.segments ??
+          state.players[playerId]?.segments ??
+          [];
+        const set = new Set(current);
+        set.add(segmentId);
+        result.playerUpdates.segments = Array.from(set);
+        break;
+      }
+
       case "assignSegment": {
-        // Segment assignment is handled separately in processEvent
-        // This action is recorded but execution happens via SegmentationEngine
+        const segmentId = (action as any).value;
+        if (!segmentId) break;
+        const current =
+          result.playerUpdates.segments ??
+          state.players[playerId]?.segments ??
+          [];
+        const set = new Set(current);
+        set.add(segmentId);
+        result.playerUpdates.segments = Array.from(set);
         break;
       }
 
@@ -95,7 +122,24 @@ export function executeActions(
         break;
       }
 
+      case "block_bonus": {
+        result.playerUpdates.blockedActions = {
+          ...result.playerUpdates.blockedActions,
+          bonus: true,
+        };
+        break;
+      }
+
       case "blockDeposit": {
+        result.playerUpdates.canDeposit = false;
+        result.playerUpdates.blockedActions = {
+          ...result.playerUpdates.blockedActions,
+          deposit: true,
+        };
+        break;
+      }
+
+      case "block_deposit": {
         result.playerUpdates.canDeposit = false;
         result.playerUpdates.blockedActions = {
           ...result.playerUpdates.blockedActions,
@@ -113,7 +157,24 @@ export function executeActions(
         break;
       }
 
+      case "block_withdrawal": {
+        result.playerUpdates.canWithdraw = false;
+        result.playerUpdates.blockedActions = {
+          ...result.playerUpdates.blockedActions,
+          withdrawal: true,
+        };
+        break;
+      }
+
       case "blockGameplay": {
+        result.playerUpdates.blockedActions = {
+          ...result.playerUpdates.blockedActions,
+          gameplay: true,
+        };
+        break;
+      }
+
+      case "block_gameplay": {
         result.playerUpdates.blockedActions = {
           ...result.playerUpdates.blockedActions,
           gameplay: true,
@@ -138,6 +199,15 @@ export function executeActions(
 
       case "closeAccount": {
         result.playerUpdates.accountStatus = "Closed";
+        result.playerUpdates.canDeposit = false;
+        result.playerUpdates.canWithdraw = false;
+        break;
+      }
+
+      case "close_account": {
+        result.playerUpdates.accountStatus = "Closed";
+        result.playerUpdates.canDeposit = false;
+        result.playerUpdates.canWithdraw = false;
         break;
       }
 
@@ -172,8 +242,16 @@ export function executeActions(
       }
 
       case "changeCategory": {
-        // Category change is logged but category field doesn't exist yet
-        // For now, just record the action
+        const category =
+          (action as any).value ?? action.params?.category ?? "risk";
+        (result.playerUpdates as any).category = category;
+        break;
+      }
+
+      case "change_category": {
+        const category =
+          action.params?.category ?? (action as any).value ?? "risk";
+        (result.playerUpdates as any).category = category;
         break;
       }
 

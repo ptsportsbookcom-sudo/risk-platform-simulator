@@ -99,6 +99,7 @@ export interface PlayerRiskState {
   canWithdraw: boolean;
   isFrozen: boolean;
   accountStatus: "Active" | "Blocked" | "Frozen" | "Closed";
+  category?: string;
   blockedActions?: {
     deposit?: boolean;
     withdrawal?: boolean;

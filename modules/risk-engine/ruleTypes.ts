@@ -82,30 +82,45 @@ export type RuleConditions = RuleCondition[] | ConditionGroup;
 
 export type RuleSeverity = "critical" | "high" | "medium" | "low";
 
+export type BaseRuleAction = {
+  type: string;
+  params?: Record<string, any>;
+};
+
 export type RuleAction =
-  | { type: "createAlert" }
-  | { type: "createCase" }
-  | { type: "assignSegment"; value: string }
+  // alerting / workflow
+  | (BaseRuleAction & { type: "createAlert" })
+  | (BaseRuleAction & { type: "create_alert" })
+  | (BaseRuleAction & { type: "createCase" })
+  | (BaseRuleAction & { type: "create_case" })
+  | (BaseRuleAction & { type: "assignSegment"; value: string })
+  | (BaseRuleAction & { type: "assign_segment" })
   // sportsbook / financial controls
-  | { type: "blockBet" }
-  | { type: "limitStake"; value?: number }
-  | { type: "blockDeposit" }
-  | { type: "blockWithdrawal" }
+  | (BaseRuleAction & { type: "blockBet" })
+  | (BaseRuleAction & { type: "limitStake"; value?: number })
+  | (BaseRuleAction & { type: "blockDeposit" })
+  | (BaseRuleAction & { type: "blockWithdrawal" })
+  | (BaseRuleAction & { type: "block_deposit" })
+  | (BaseRuleAction & { type: "block_withdrawal" })
   // gameplay controls
-  | { type: "blockBonus" }
-  | { type: "blockGameplay" }
+  | (BaseRuleAction & { type: "blockBonus" })
+  | (BaseRuleAction & { type: "blockGameplay" })
+  | (BaseRuleAction & { type: "block_bonus" })
+  | (BaseRuleAction & { type: "block_gameplay" })
   // compliance controls
-  | { type: "requireKyc" }
-  | { type: "moveCddTier"; value?: string }
+  | (BaseRuleAction & { type: "requireKyc" })
+  | (BaseRuleAction & { type: "moveCddTier"; value?: string })
   // account / category controls
-  | { type: "freezeAccount" }
-  | { type: "closeAccount" }
-  | { type: "changeCategory"; value?: string }
+  | (BaseRuleAction & { type: "freezeAccount" })
+  | (BaseRuleAction & { type: "closeAccount" })
+  | (BaseRuleAction & { type: "close_account" })
+  | (BaseRuleAction & { type: "changeCategory"; value?: string })
+  | (BaseRuleAction & { type: "change_category" })
   // workflow / queue routing
-  | { type: "sendToHighRiskReview" }
-  | { type: "sendToReviewTrading" }
-  | { type: "sendToReviewCasino" }
-  | { type: "sendToReviewKyc" };
+  | (BaseRuleAction & { type: "sendToHighRiskReview" })
+  | (BaseRuleAction & { type: "sendToReviewTrading" })
+  | (BaseRuleAction & { type: "sendToReviewCasino" })
+  | (BaseRuleAction & { type: "sendToReviewKyc" });
 
 export interface Rule {
   id: string;
