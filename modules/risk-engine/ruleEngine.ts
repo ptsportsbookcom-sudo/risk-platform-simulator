@@ -384,7 +384,22 @@ export function evaluateRules(
       (r.eventType === "any" || r.eventType === event.eventType || r.eventType == null),
   );
 
+  const product = (event.metadata as { product?: string } | undefined)?.product;
+
   for (const rule of activeCustom) {
+    // Domain-based product filtering
+    const domain = rule.domain;
+    if (domain === "sportsbook_trading" || domain === "sportsbook_risk") {
+      if (product !== "sportsbook") {
+        continue;
+      }
+    } else if (domain === "casino_risk") {
+      if (product !== "casino") {
+        continue;
+      }
+    }
+    // fraud_abuse, aml_compliance, responsible_gambling, operations are global: no filter
+
     const matches = evaluateConditions(rule.conditions as RuleConditions, event, player);
 
     if (!matches) continue;
