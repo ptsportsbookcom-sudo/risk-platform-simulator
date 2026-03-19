@@ -250,6 +250,8 @@ export function processEvent(
   state: RiskEngineState,
   event: EngineEvent,
 ): ProcessEventResult {
+  const auditEntries: AuditEntry[] = [];
+
   const existingPlayer = state.players[event.playerId];
   const baselinePlayer: PlayerRiskState =
     existingPlayer ??
@@ -402,6 +404,17 @@ export function processEvent(
 
   const ruleResults = evaluateRules(event, snapshotForRules, state.rules ?? []);
 
+  // Audit: rules triggered
+  for (const r of ruleResults) {
+    auditEntries.push({
+      id: nextId("AUDIT"),
+      playerId: event.playerId,
+      action: `Rule triggered: ${r.ruleId}`,
+      performedBy: "system",
+      timestamp: event.timestamp,
+    });
+  }
+
   // Lightweight sportsbook liability tracking for bet events
   const metaForLiability = (event.metadata ?? {}) as {
     eventId?: string;
@@ -489,6 +502,24 @@ export function processEvent(
         newAlerts.push(...actionResult.alerts);
         ruleAlerts.push(...actionResult.alerts);
         newCases.push(...actionResult.cases);
+        for (const created of actionResult.alerts) {
+          auditEntries.push({
+            id: nextId("AUDIT"),
+            playerId: created.playerId,
+            action: `Alert created: ${created.ruleTriggered}`,
+            performedBy: "system",
+            timestamp: created.createdAt,
+          });
+        }
+        for (const created of actionResult.cases) {
+          auditEntries.push({
+            id: nextId("AUDIT"),
+            playerId: created.playerId,
+            action: `Case created: ${created.id}`,
+            performedBy: "system",
+            timestamp: created.openedAt,
+          });
+        }
         allActions.push(...actionResult.recordedActions);
         cumulativePlayerUpdates = {
           ...cumulativePlayerUpdates,
@@ -514,6 +545,13 @@ export function processEvent(
         };
         newAlerts.push(alert);
         ruleAlerts.push(alert);
+        auditEntries.push({
+          id: nextId("AUDIT"),
+          playerId: alert.playerId,
+          action: `Alert created: ${alert.ruleTriggered}`,
+          performedBy: "system",
+          timestamp: alert.createdAt,
+        });
       }
 
       // If this is a sportsbook large bet rule, register a high-risk bet.
@@ -564,6 +602,13 @@ export function processEvent(
         status: "Open",
       };
       newCases.push(caseRecord);
+      auditEntries.push({
+        id: nextId("AUDIT"),
+        playerId: caseRecord.playerId,
+        action: `Case created: ${caseRecord.id}`,
+        performedBy: "system",
+        timestamp: caseRecord.openedAt,
+      });
     }
 
     // Legacy assignSegments handling (if not already handled by actions)
@@ -673,6 +718,74 @@ export function processEvent(
 
   const playerWithSegments: PlayerRiskState = playerWithActions;
 
+  // Audit: player updates (status, payment controls, blocks, segments)
+  const before = updatedPlayer;
+  const after = playerWithSegments;
+
+  if (before.accountStatus !== after.accountStatus) {
+    auditEntries.push({
+      id: nextId("AUDIT"),
+      playerId: event.playerId,
+      action: "Account status updated",
+      performedBy: "system",
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (
+    before.canDeposit !== after.canDeposit ||
+    before.canWithdraw !== after.canWithdraw
+  ) {
+    auditEntries.push({
+      id: nextId("AUDIT"),
+      playerId: event.playerId,
+      action: "Payment restriction applied",
+      performedBy: "system",
+      timestamp: event.timestamp,
+    });
+  }
+
+  const beforeBlocked = before.blockedActions ?? {};
+  const afterBlocked = after.blockedActions ?? {};
+  if (
+    beforeBlocked.deposit !== afterBlocked.deposit ||
+    beforeBlocked.withdrawal !== afterBlocked.withdrawal ||
+    beforeBlocked.gameplay !== afterBlocked.gameplay ||
+    beforeBlocked.bonus !== afterBlocked.bonus ||
+    beforeBlocked.betting !== afterBlocked.betting
+  ) {
+    auditEntries.push({
+      id: nextId("AUDIT"),
+      playerId: event.playerId,
+      action: "Player action blocked",
+      performedBy: "system",
+      timestamp: event.timestamp,
+    });
+  }
+
+  const beforeSegments = new Set(before.segments ?? []);
+  const afterSegments = new Set(after.segments ?? []);
+  let segmentsChanged = false;
+  if (beforeSegments.size !== afterSegments.size) {
+    segmentsChanged = true;
+  } else {
+    for (const seg of beforeSegments) {
+      if (!afterSegments.has(seg)) {
+        segmentsChanged = true;
+        break;
+      }
+    }
+  }
+  if (segmentsChanged) {
+    auditEntries.push({
+      id: nextId("AUDIT"),
+      playerId: event.playerId,
+      action: "Segment assigned",
+      performedBy: "system",
+      timestamp: event.timestamp,
+    });
+  }
+
   const nextState: RiskEngineState = {
     players: {
       ...state.players,
@@ -685,7 +798,7 @@ export function processEvent(
     events: nextEvents.slice(0, 100),
     rules: state.rules,
     segments: [...(state.segments ?? []), ...newSegments],
-    auditLog: state.auditLog,
+    auditLog: [...state.auditLog, ...auditEntries],
   };
 
   return {
